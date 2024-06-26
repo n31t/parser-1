@@ -807,6 +807,13 @@
   dependencies:
     "@types/express" "*"
 
+"@types/puppeteer@^7.0.4":
+  version "7.0.4"
+  resolved "https://registry.npmjs.org/@types/puppeteer/-/puppeteer-7.0.4.tgz"
+  integrity sha512-ja78vquZc8y+GM2al07GZqWDKQskQXygCDiu0e3uO0DMRKqE0MjrFBFmTulfPYzLB6WnL7Kl2tFPy0WXSpPomg==
+  dependencies:
+    puppeteer "*"
+
 "@types/qs@*":
   version "6.9.15"
   resolved "https://registry.npmjs.org/@types/qs/-/qs-6.9.15.tgz"
@@ -3708,7 +3715,7 @@ puppeteer-core@22.12.0:
     devtools-protocol "0.0.1299070"
     ws "8.17.1"
 
-puppeteer@^22.12.0:
+puppeteer@*, puppeteer@^22.12.0:
   version "22.12.0"
   resolved "https://registry.npmjs.org/puppeteer/-/puppeteer-22.12.0.tgz"
   integrity sha512-kyUYI12SyJIjf9UGTnHfhNMYv4oVK321Jb9QZDBiGVNx5453SplvbdKI7UrF+S//3RtCneuUFCyHxnvQXQjpxg==

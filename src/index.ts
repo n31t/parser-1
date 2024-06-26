@@ -4,11 +4,11 @@ import connectDB from './db';
 import globalRouter from './global-router';
 import { logger } from './logger';
 import saveDataToDB from './parser/axiosParser';
-import parseData from './parser/etagiParser';
+import parseData from './parser/etagiParser2';
 // import parser from './parser/axiosParser';
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3939;
 // connectDB();
 app.use(logger);
 app.use(express.json());
