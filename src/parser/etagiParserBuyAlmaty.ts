@@ -1,6 +1,5 @@
-import puppeteer from "puppeteer";
+import puppeteer, { Page } from "puppeteer";
 import { Characteristics, Data, MainCharacteristics } from "./types/apartments";
-
 
 const userAgents = [
     'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36',
@@ -55,84 +54,133 @@ const userAgents = [
     'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.5249.51 Safari/537.36',
     'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.5299.51 Safari/537.36',
     'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.5349.51 Safari/537.36',
-    ];
+];
 
 function getRandomUserAgent(): string {
     return userAgents[Math.floor(Math.random() * userAgents.length)];
 }
 
 function getRandomDelay(min: number, max: number): number {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+async function autoScroll(page: Page){
+    await page.evaluate(() => {
+        return new Promise<void>((resolve, reject) => {
+            let totalHeight = 0;
+            const distance = 100;
+            const timer = setInterval(() => {
+                const scrollHeight = document.body.scrollHeight;
+                window.scrollBy(0, distance);
+                totalHeight += distance;
+
+                if (totalHeight >= scrollHeight){
+                    clearInterval(timer);
+                    resolve();
+                }
+            }, 100);
+        });
+    });
+}
+
+
+async function scrapeCurrentPage(page: Page, data: Data[]): Promise<void> {
+    await autoScroll(page);
+    const links = await page.$$eval('a.templates-object-card__body.yQfYt', anchors => anchors.map(anchor => anchor.href));
+
+    for (const link of links) {
+        
+        console.log(`Scraping link: ${link}`);
+
+        const detailPage = await page.browser().newPage();
+        const userAgent = getRandomUserAgent();
+        await detailPage.setUserAgent(userAgent);
+        await detailPage.goto(link);
+
+        await detailPage.waitForSelector('div[data-testid="object_characteristics"]');
+
+        const characteristics = await detailPage.$$eval('div[data-testid="object_characteristics"] li.gWNDI', items => {
+            const itemData: Characteristics = {};
+            items.forEach(item => {
+                const key = item.querySelector('span.Y65Dj')?.textContent;
+                const value = item.querySelector('span.XVztD')?.textContent;
+                if (key && value) {
+                    itemData[key] = value;
+                }
+            });
+            return itemData;
+        });
+
+        const price = await detailPage.$eval('span[data-testid="object_current_price"]', el => el.textContent || '');
+        const floor = await detailPage.$eval('span[data-testid="object_title"]', el => el.textContent || '');
+        const location = await detailPage.$eval('div[data-testid="object_address"]', el => {
+            const clone = el.cloneNode(true) as HTMLElement;
+            const unwantedDiv = clone.querySelector('.NU4YX');
+            if (unwantedDiv) unwantedDiv.remove();
+            return clone.textContent || '';
+        });
+
+        const photos = await detailPage.$$eval('div.msUAD.MAfDE', elements => {
+            return elements.map(el => {
+                const style = getComputedStyle(el);
+                const backgroundImage = style.backgroundImage;
+                const match = backgroundImage.match(/url\("(.*)"\)/);
+                return match ? match[1] : '';
+            });
+        });
+
+        await detailPage.click('button.ertXu');
+
+        await detailPage.waitForFunction(
+            (buttonText) => {
+                const button = document.querySelector('button.ertXu span');
+                return button && button.textContent !== buttonText;
+            },
+            {},
+            ''
+        );
+
+        const number = await detailPage.$eval('button.ertXu span', el => el.textContent || '');
+
+        const mainCharacteristics: MainCharacteristics = { price, location, floor, number, photos };
+
+        // data.push({ link, characteristics, mainCharacteristics });
+        // console.log(`Extracted data: ${JSON.stringify({ link, characteristics, mainCharacteristics }, null, 2)}`);
+        console.log({link})
+        await detailPage.close();
+    }
+}
+
+async function scrapeAllPages(page: Page, data: Data[], currentPage: number = 12): Promise<void> {
+    console.log(`Scraping page ${currentPage}...`)
+    await page.goto(`https://almaty.etagi.com/realty_rent/?page=${currentPage}`);
+    const isLastPage = await page.$eval('div.ZJ0dK', div => div.textContent === 'Ничего не найдено').catch(() => false);
+    if (isLastPage) {
+        console.log("Last page have reached")
+        return;
+    }
+    await scrapeCurrentPage(page, data);
+    
+    if (!isLastPage) {
+        await new Promise(resolve => setTimeout(resolve, getRandomDelay(2000, 5000))); // Random delay between 2 to 5 seconds
+        await scrapeAllPages(page, data, currentPage + 1);
+    }
+    else{
+        console.log("Last page have reached")
+    }
 }
 
 async function parseData(): Promise<Data[]> {
-  const browser = await puppeteer.launch();
-  const page = await browser.newPage();
-  await page.goto('https://almaty.etagi.com/realty_rent/');
+    const browser = await puppeteer.launch();
+    const page = await browser.newPage();
+    const data: Data[] = [];
 
-  const links = await page.$$eval('div[data-testid="object_card"] a', anchors => anchors.map(anchor => anchor.href));
-  const data: Data[] = [];
+    await scrapeAllPages(page, data);
 
-  for (const link of links) {
-    const detailPage = await browser.newPage();
-    const userAgent = getRandomUserAgent();
-    await detailPage.setUserAgent(userAgent)
-    await detailPage.goto(link);
-
-    const characteristics = await detailPage.$$eval('div[data-testid="object_characteristics"] li.gWNDI', items => {
-      const itemData: Characteristics = {};
-      items.forEach(item => {
-        const key = item.querySelector('span.Y65Dj')?.textContent;
-        const value = item.querySelector('span.XVztD')?.textContent;
-        if (key && value) {
-          itemData[key] = value;
-        }
-      });
-
-      return itemData;
-    });
-
-    const price = await detailPage.$eval('span[data-testid="object_current_price"]', el => el.textContent || '');
-    const floor = await detailPage.$eval('span[data-testid="object_title"]', el => el.textContent || '');
-    const location = await detailPage.$eval('div[data-testid="object_address"]', el => {
-        const clone = el.cloneNode(true) as HTMLElement; // Clone the element
-        const unwantedDiv = clone.querySelector('.NU4YX'); // Select the unwanted div
-        if (unwantedDiv) unwantedDiv.remove(); // Remove the unwanted div from the clone
-        return clone.textContent || ''; // Return the text content of the clone
-      });
-      
-      const photos = await detailPage.$$eval('div.msUAD.MAfDE', elements => {
-        return elements.map(el => {
-          const style = getComputedStyle(el);
-          const backgroundImage = style.backgroundImage;
-          const match = backgroundImage.match(/url\("(.*)"\)/);
-          return match ? match[1] : '';
-        });
-      });
-
-    // Click the button
-    await detailPage.click('button.ertXu');
-
-    await detailPage.waitForFunction(
-        (buttonText) => {
-          const button = document.querySelector('button.ertXu span');
-          return button && button.textContent !== buttonText;
-        },
-        {},
-        '' // Initial button text
-      );
-    const number = await detailPage.$eval('button.ertXu span', el => el.textContent || '')
-
-    const mainCharacteristics: MainCharacteristics = { price, location, floor, number, photos };
-    
-    data.push({ link, characteristics, mainCharacteristics });
-    await detailPage.close();
-  }
-
-  await browser.close();
-  return data;
+    await browser.close();
+    return data;
 }
 
-parseData().then(data => console.log(JSON.stringify(data, null, 2))).catch(console.error);
+// parseData().then(data => console.log(JSON.stringify(data, null, 2))).catch(console.error);
 
 export default parseData;

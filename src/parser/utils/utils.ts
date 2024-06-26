@@ -1,8 +1,6 @@
-import puppeteer from "puppeteer";
-import { Characteristics, Data, MainCharacteristics } from "./types/apartments";
+import { Page } from "puppeteer";
 
-
-const userAgents = [
+export const userAgents = [
     'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36',
     'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/57.0.2987.133 Safari/537.36',
     'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36',
@@ -55,84 +53,31 @@ const userAgents = [
     'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.5249.51 Safari/537.36',
     'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.5299.51 Safari/537.36',
     'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.5349.51 Safari/537.36',
-    ];
+];
 
-function getRandomUserAgent(): string {
+export function getRandomUserAgent(): string {
     return userAgents[Math.floor(Math.random() * userAgents.length)];
 }
 
-function getRandomDelay(min: number, max: number): number {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
+export function getRandomDelay(min: number, max: number): number {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-async function parseData(): Promise<Data[]> {
-  const browser = await puppeteer.launch();
-  const page = await browser.newPage();
-  await page.goto('https://almaty.etagi.com/realty_rent/');
+export async function autoScroll(page: Page){
+    await page.evaluate(() => {
+        return new Promise<void>((resolve, reject) => {
+            let totalHeight = 0;
+            const distance = 100;
+            const timer = setInterval(() => {
+                const scrollHeight = document.body.scrollHeight;
+                window.scrollBy(0, distance);
+                totalHeight += distance;
 
-  const links = await page.$$eval('div[data-testid="object_card"] a', anchors => anchors.map(anchor => anchor.href));
-  const data: Data[] = [];
-
-  for (const link of links) {
-    const detailPage = await browser.newPage();
-    const userAgent = getRandomUserAgent();
-    await detailPage.setUserAgent(userAgent)
-    await detailPage.goto(link);
-
-    const characteristics = await detailPage.$$eval('div[data-testid="object_characteristics"] li.gWNDI', items => {
-      const itemData: Characteristics = {};
-      items.forEach(item => {
-        const key = item.querySelector('span.Y65Dj')?.textContent;
-        const value = item.querySelector('span.XVztD')?.textContent;
-        if (key && value) {
-          itemData[key] = value;
-        }
-      });
-
-      return itemData;
-    });
-
-    const price = await detailPage.$eval('span[data-testid="object_current_price"]', el => el.textContent || '');
-    const floor = await detailPage.$eval('span[data-testid="object_title"]', el => el.textContent || '');
-    const location = await detailPage.$eval('div[data-testid="object_address"]', el => {
-        const clone = el.cloneNode(true) as HTMLElement; // Clone the element
-        const unwantedDiv = clone.querySelector('.NU4YX'); // Select the unwanted div
-        if (unwantedDiv) unwantedDiv.remove(); // Remove the unwanted div from the clone
-        return clone.textContent || ''; // Return the text content of the clone
-      });
-      
-      const photos = await detailPage.$$eval('div.msUAD.MAfDE', elements => {
-        return elements.map(el => {
-          const style = getComputedStyle(el);
-          const backgroundImage = style.backgroundImage;
-          const match = backgroundImage.match(/url\("(.*)"\)/);
-          return match ? match[1] : '';
+                if (totalHeight >= scrollHeight){
+                    clearInterval(timer);
+                    resolve();
+                }
+            }, 100);
         });
-      });
-
-    // Click the button
-    await detailPage.click('button.ertXu');
-
-    await detailPage.waitForFunction(
-        (buttonText) => {
-          const button = document.querySelector('button.ertXu span');
-          return button && button.textContent !== buttonText;
-        },
-        {},
-        '' // Initial button text
-      );
-    const number = await detailPage.$eval('button.ertXu span', el => el.textContent || '')
-
-    const mainCharacteristics: MainCharacteristics = { price, location, floor, number, photos };
-    
-    data.push({ link, characteristics, mainCharacteristics });
-    await detailPage.close();
-  }
-
-  await browser.close();
-  return data;
+    });
 }
-
-parseData().then(data => console.log(JSON.stringify(data, null, 2))).catch(console.error);
-
-export default parseData;
