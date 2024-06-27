@@ -1,6 +1,30 @@
 import puppeteer, { Page } from "puppeteer";
 import { Characteristics, Data, MainCharacteristics } from "./types/apartments";
+import { PrismaClient } from "@prisma/client";
 import { autoScroll, getRandomDelay, getRandomUserAgent } from "./utils/utils";
+import * as chrono from 'chrono-node';
+
+const prisma = new PrismaClient();
+
+async function saveToDatabase(data: Data[]) : Promise<void> {
+    const currentDate = new Date()
+    for(const {link, characteristics, mainCharacteristics} of data) {
+        const { price, location, floor, number, photos } = mainCharacteristics;
+        await prisma.apartment.upsert({
+            where: { link },
+            update: { price, location, floor, number, photos, characteristics, lastChecked: currentDate },
+            create: { link, price, location, floor, number, photos, characteristics, lastChecked: currentDate },
+        });
+        }
+
+        await prisma.apartment.deleteMany({
+            where: {
+                lastChecked: {
+                    lt: currentDate,
+                },
+            },
+        });
+}
 
 async function scrapeCurrentPage(page: Page, data: Data[]): Promise<void> {
     await autoScroll(page);
@@ -29,7 +53,11 @@ async function scrapeCurrentPage(page: Page, data: Data[]): Promise<void> {
                 return itemData;
             });
 
-            const price = await detailPage.$eval('span[data-testid="object_current_price"]', el => el.textContent || '');
+            const price = await detailPage.$eval('span[data-testid="object_current_price"]', el => {
+                const priceText = el.textContent || '';
+                const priceNumber = parseInt(priceText.replace(/\s|₸/g, ''), 10);
+                return priceNumber;
+            });
             const floor = await detailPage.$eval('span[data-testid="object_title"]', el => el.textContent || '');
             const location = await detailPage.$eval('div[data-testid="object_address"]', el => {
                 const clone = el.cloneNode(true) as HTMLElement;
@@ -98,6 +126,9 @@ async function scrapeAllPages(page: Page, data: Data[], currentPage: number = 1)
             console.error(`Error scraping page ${currentPage}:`, error);
             // Continue to next page if an error occurs
             currentPage++;
+            if (currentPage > 500) {
+                return;
+            }
         }
     }
 }
@@ -109,6 +140,7 @@ async function parseData(): Promise<Data[]> {
 
     try {
         await scrapeAllPages(page, data);
+        await saveToDatabase(data);
     } catch (error) {
         console.error('Error in scrapeAllPages:', error);
     } finally {
@@ -118,6 +150,26 @@ async function parseData(): Promise<Data[]> {
     return data;
 }
 
+
 // parseData().then(data => console.log(JSON.stringify(data, null, 2))).catch(console.error);
+
+function scheduleScraper() {
+    const twelveHours = 12 * 60 * 60 * 1000;
+
+    async function runScraper() {
+        try {
+            await parseData();
+            console.log('Scraping completed successfully');
+        } catch (error) {
+            console.error('Error during scraping process:', error);
+        }
+    }
+    runScraper();
+
+    // Schedule the scraper to run every 12 hours
+    setInterval(runScraper, twelveHours);
+}
+
+scheduleScraper();
 
 export default parseData;

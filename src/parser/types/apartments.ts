@@ -1,5 +1,5 @@
 export interface MainCharacteristics {
-    price: string;
+    price: number;
     location: string;
     floor: string;
     number: string;

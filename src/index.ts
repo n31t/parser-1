@@ -4,7 +4,7 @@ import connectDB from './db';
 import globalRouter from './global-router';
 import { logger } from './logger';
 import saveDataToDB from './parser/axiosParser';
-import parseData from './parser/etagiParser2';
+import parseData from './parser/etagiParserRentAlmaty';
 
 const app = express();
 const PORT = process.env.PORT || 3939;
