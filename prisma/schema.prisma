@@ -22,6 +22,8 @@ model Apartment {
   number String
   photos          String[]
   characteristics Json
+  site String
+  type String
   updatedAt       DateTime  @updatedAt
   lastChecked     DateTime  @default(now())
 }

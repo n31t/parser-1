@@ -2,7 +2,8 @@ import puppeteer, { Page } from "puppeteer";
 import { Characteristics, Data, MainCharacteristics } from "./types/apartments";
 import { PrismaClient } from "@prisma/client";
 import { autoScroll, getRandomDelay, getRandomUserAgent } from "./utils/utils";
-import * as chrono from 'chrono-node';
+import cron from 'node-cron';
+
 
 const prisma = new PrismaClient();
 
@@ -91,7 +92,7 @@ async function scrapeCurrentPage(page: Page, data: Data[]): Promise<void> {
             const mainCharacteristics: MainCharacteristics = { price, location, floor, number, photos };
 
             data.push({ link, characteristics, mainCharacteristics });
-            console.log(`Extracted data: ${JSON.stringify({ link, characteristics, mainCharacteristics }, null, 2)}`);
+            // console.log(`Extracted data: ${JSON.stringify({ link, characteristics, mainCharacteristics }, null, 2)}`);
             await detailPage.close();
         } catch (error) {
             console.error(`Error scraping link ${link}:`, error);
@@ -154,8 +155,6 @@ async function parseData(): Promise<Data[]> {
 // parseData().then(data => console.log(JSON.stringify(data, null, 2))).catch(console.error);
 
 function scheduleScraper() {
-    const twelveHours = 12 * 60 * 60 * 1000;
-
     async function runScraper() {
         try {
             await parseData();
@@ -166,9 +165,11 @@ function scheduleScraper() {
     }
     runScraper();
 
-    // Schedule the scraper to run every 12 hours
-    setInterval(runScraper, twelveHours);
+    // Schedule the scraper to run every 12 hours using node-cron
+    cron.schedule('0 */12 * * *', runScraper);
 }
+
+
 
 scheduleScraper();
 
