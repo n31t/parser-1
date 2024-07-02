@@ -146,9 +146,6 @@ async function scrapeCurrentPage(page: Page, data: Data[]): Promise<void> {
                 description = "Нет описания"
                 // console.log(description);
             }
-            // description = await detailPage.$eval('div.js-description.a-text.a-text-white-spaces' , 
-            // el => el.textContent || '');
-            // console.log(description)
 
             const characteristics = await detailPage.$$eval('div.offer__parameters dl', items => {
                 const itemData: { [key: string]: string } = {};
@@ -165,11 +162,27 @@ async function scrapeCurrentPage(page: Page, data: Data[]): Promise<void> {
             });
             // console.log(characteristics);
 
-            const price = await detailPage.$eval('div.offer__price', el => {
-                const priceText = el.textContent || '';
-                const priceNumber = parseInt(priceText.replace(/\s|₸/g, ''), 10);
-                return priceNumber;
+            // const price = await detailPage.$eval('div.offer__price', el => {
+            //     const priceText = el.textContent || '';
+            //     const priceNumber = parseInt(priceText.replace(/\s|₸/g, ''), 10);
+            //     return priceNumber;
+            // });
+            let price = 0;
+            let priceElement = await detailPage.$('div.offer__price');
+            if (priceElement) {
+                price = await detailPage.$eval('div.offer__price', el => {
+                    const priceText = el.textContent || '';
+                    const priceNumber = parseInt(priceText.replace(/\s|₸/g, ''), 10);
+                    return priceNumber;
+                });
+            }
+            else{
+                price = await detailPage.$eval(' p.offer__price', el => {
+                    const priceText = el.textContent || '';
+                    const priceNumber = parseInt(priceText.replace(/[^0-9]/g, ''), 10);
+                    return priceNumber;
             });
+            }
             // console.log(price)
 
             const floor = await detailPage.$eval('div.offer__advert-title h1', el => {
