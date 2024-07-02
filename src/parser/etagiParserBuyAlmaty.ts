@@ -8,11 +8,11 @@ const prisma = new PrismaClient();
 
 async function saveToDatabase(data: Data[]): Promise<void> {
     const currentDate = new Date();
-    for (const { link, characteristics, mainCharacteristics, description, site, type } of data) {
+    for (const { link, characteristics, mainCharacteristics, description,site, type } of data) {
         const { price, location, floor, number, photos } = mainCharacteristics;
         await prisma.apartment.upsert({
             where: { link },
-            update: { price, location, floor, number, photos, characteristics,description, lastChecked: currentDate, site, type },
+            update: { price, location, floor, number, photos, characteristics, description, lastChecked: currentDate, site, type },
             create: { link, price, location, floor, number, photos, characteristics, description, lastChecked: currentDate, site, type },
         });
     }
@@ -29,7 +29,7 @@ async function saveToDatabase(data: Data[]): Promise<void> {
                     site: "etagi",
                 },
                 {
-                    type: "rent",
+                    type: "buy",
                 },
             ],
         },
@@ -49,10 +49,13 @@ async function scrapeCurrentPage(page: Page, data: Data[]): Promise<void> {
             await detailPage.setUserAgent(userAgent);
             await detailPage.goto(link);
 
-            await detailPage.waitForSelector('div[data-testid="object_characteristics"]');
-            
+            // await detailPage.click('button.plr_dNP.plr_yks.plr_gY6.plr_l4J');
             const buttons = await detailPage.$$('button.cuZ5z.Ave0A.jJShB.tOs6D._0LC_o.GmYmq.zPhuj');
-            if(buttons.length > 0){
+            if(buttons.length > 1){
+                await buttons[1].click();
+                await buttons[0].click();
+            }
+            else{
                 await buttons[0].click();
             }
 
@@ -111,9 +114,9 @@ async function scrapeCurrentPage(page: Page, data: Data[]): Promise<void> {
 
             const mainCharacteristics: MainCharacteristics = { price, location, floor, number, photos };
             const site = "etagi";  // Adding the site field
-            const type = "rent";   // Adding the type field
+            const type = "buy";   // Adding the type field
 
-            data.push({ link, characteristics, mainCharacteristics,description, site, type });
+            data.push({ link, characteristics, mainCharacteristics, description, site, type });
             // console.log(`Extracted data: ${JSON.stringify({ link, characteristics, mainCharacteristics }, null, 2)}`);
             await detailPage.close();
         } catch (error) {
@@ -128,7 +131,7 @@ async function scrapeAllPages(page: Page, data: Data[], currentPage: number = 1)
     while (!isLastPage) {
         console.log(`Scraping page ${currentPage}...`);
         try {
-            await page.goto(`https://almaty.etagi.com/realty_rent/?page=${currentPage}`);
+            await page.goto(`https://almaty.etagi.com/realty/?page=${currentPage}`);
             isLastPage = await page.$eval('div.ZJ0dK', div => div.textContent === 'Ничего не найдено').catch(() => false);
             if (!isLastPage) {
                 await scrapeCurrentPage(page, data);
@@ -156,7 +159,7 @@ async function scrapeAllPages(page: Page, data: Data[], currentPage: number = 1)
     }
 }
 
-async function etagiParserRentAlmaty(): Promise<Data[]> {
+async function etagiParseBuyAlmaty(): Promise<Data[]> {
     const browser = await puppeteer.launch();
     const page = await browser.newPage();
     const data: Data[] = [];
@@ -190,4 +193,5 @@ async function etagiParserRentAlmaty(): Promise<Data[]> {
 
 // scheduleScraper();
 
-export default etagiParserRentAlmaty;
+
+export default etagiParseBuyAlmaty;

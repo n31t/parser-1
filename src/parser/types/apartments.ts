@@ -3,7 +3,7 @@ export interface MainCharacteristics {
     location: string;
     floor: string;
     number: string;
-    photos: string[]
+    photos: string[];
 }
 
 export interface Characteristics {
@@ -12,6 +12,9 @@ export interface Characteristics {
 
 export interface Data {
   link: string;
+  site: string;
+  type: string;
   characteristics: Characteristics;
+  description: string;
   mainCharacteristics: MainCharacteristics;
 }

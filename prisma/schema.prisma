@@ -22,6 +22,7 @@ model Apartment {
   number String
   photos          String[]
   characteristics Json
+  description String @default("")
   site String
   type String
   updatedAt       DateTime  @updatedAt
