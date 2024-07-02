@@ -4,6 +4,7 @@ import { PrismaClient } from "@prisma/client";
 import { autoScroll, getRandomDelay, getRandomUserAgent } from "./utils/utils";
 
 import cron from 'node-cron';
+//COPY PINECONE CODE
 let { GoogleGenerativeAIEmbeddings } = require("@langchain/google-genai");
 import pinecone from "../pinecone";
 const prisma = new PrismaClient();
@@ -33,16 +34,17 @@ async function cleanUpOldPineconeEntries(index, currentDate) {
         console.log("No old vectors found to delete.");
     }
 }
-
+//COPY PINECONE CODE
 async function saveToDatabase(data: Data[]): Promise<void> {
     const currentDate = new Date();
+    //COPY PINECONE CODE
     const embeddings = new GoogleGenerativeAIEmbeddings({
         model: "embedding-001", // 768 dimensions
     });
 
     const indexName = "homespark2";
     const index = pinecone.index(indexName);
-
+    //COPY PINECONE CODE
 
     for (const { link, characteristics, mainCharacteristics, description,site, type } of data) {
         const { price, location, floor, number, photos } = mainCharacteristics;
@@ -52,7 +54,7 @@ async function saveToDatabase(data: Data[]): Promise<void> {
             create: { link, price, location, floor, number, photos, characteristics, description, lastChecked: currentDate, site, type },
         });
 
-        // Prepare text for embedding
+        //COPY PINECONE CODE
         const text = `${description} 
         ${price} 
         ${location} 
@@ -74,7 +76,7 @@ async function saveToDatabase(data: Data[]): Promise<void> {
                 price,
                 location,
                 floor,
-                characteristics: Object.values(characteristics),
+                characteristics: Object.entries(characteristics).map(([key, value]) => `${key}: ${value}`),
                 description,
                 site,
                 type,
@@ -100,7 +102,7 @@ async function saveToDatabase(data: Data[]): Promise<void> {
             ],
         },
     });
-
+    //COPY PINECONE CODE
     await cleanUpOldPineconeEntries(index, currentDate);
 }
 
@@ -202,7 +204,7 @@ async function scrapeAllPages(page: Page, data: Data[], currentPage: number = 1)
         try {
             await page.goto(`https://almaty.etagi.com/realty/?page=${currentPage}`);
             isLastPage = await page.$eval('div.ZJ0dK', div => div.textContent === 'Ничего не найдено').catch(() => false);
-            if (!isLastPage) {
+            if (!isLastPage && currentPage!=50) {
                 await scrapeCurrentPage(page, data);
 
                 const nextPageExists = await page.$('button.jJShB.Y5bqE._jBUx.GmYmq.zPhuj') !== null;

@@ -4,17 +4,103 @@ import { PrismaClient } from "@prisma/client";
 import { autoScroll, getRandomDelay, getRandomUserAgent } from "./utils/utils";
 import cron from 'node-cron';
 
+let { GoogleGenerativeAIEmbeddings } = require("@langchain/google-genai");
+import pinecone from "../pinecone";
 const prisma = new PrismaClient();
+
+async function cleanUpOldPineconeEntries(index, currentDate) {
+    const deleteOlderThanDate = new Date(currentDate);
+    deleteOlderThanDate.setDate(deleteOlderThanDate.getDate() - 1); // Adjust the number of days as needed
+
+    const results = await index.listPaginated({ prefix: 'doc1#' });
+    const allIds = results.vectors.map((vector) => vector.id);
+
+    let idsToDelete: string[] = []; // Explicitly define the type of idsToDelete
+
+    for (const id of allIds) {
+        const vector = await index.fetch([id]);
+        const metadata = vector.vectors[id]?.metadata;
+
+        if (metadata && metadata.site === "etagi" && metadata.type === "rent" && new Date(metadata.lastChecked) < deleteOlderThanDate) {
+            idsToDelete.push(id);
+        }
+    }
+
+    if (idsToDelete.length > 0) {
+        await index.delete(idsToDelete);
+        console.log(`Deleted ${idsToDelete.length} old vectors from Pinecone.`);
+    } else {
+        console.log("No old vectors found to delete.");
+    }
+}
 
 async function saveToDatabase(data: Data[]): Promise<void> {
     const currentDate = new Date();
+
+    const embeddings = new GoogleGenerativeAIEmbeddings({
+        model: "embedding-001", // 768 dimensions
+    });
+
+    const indexName = "homespark2";
+    const index = pinecone.index(indexName);
+
+    const maxRetries = 5;
+    const delay = 5000; 
     for (const { link, characteristics, mainCharacteristics, description, site, type } of data) {
         const { price, location, floor, number, photos } = mainCharacteristics;
-        await prisma.apartment.upsert({
-            where: { link },
-            update: { price, location, floor, number, photos, characteristics,description, lastChecked: currentDate, site, type },
-            create: { link, price, location, floor, number, photos, characteristics, description, lastChecked: currentDate, site, type },
-        });
+
+        for (let i = 0; i < maxRetries; i++) {
+            try {
+                await prisma.apartment.upsert({
+                    where: { link },
+                    update: { price, location, floor, number, photos, characteristics,description, lastChecked: currentDate, site, type },
+                    create: { link, price, location, floor, number, photos, characteristics, description, lastChecked: currentDate, site, type },
+                });
+
+                // If the operation is successful, break the loop
+                break;
+            } catch (error) {
+                console.error(`Attempt ${i + 1} to save data failed. Retrying in ${delay / 1000} seconds...`, error);
+
+                // If this was the last attempt, rethrow the error
+                if (i === maxRetries - 1) {
+                    throw error;
+                }
+
+                // Wait before retrying
+                await new Promise(resolve => setTimeout(resolve, delay));
+            }
+        }
+        // Prepare text for embedding
+        const text = `${description} 
+        ${price} 
+        ${location} 
+        ${floor} 
+        ${characteristics}`;
+        
+        // Generate embedding for Pinecone
+        const embedding = await embeddings.embedDocuments([text]);
+        console.log("length of embeddings: " + embedding.length);
+
+        const flattenedEmbedding = embedding.flat();
+
+        //Upsert data to Pinecone
+        await index.upsert([{
+            id: link,
+            values: flattenedEmbedding,
+            metadata: {
+                link,
+                price,
+                location,
+                floor,
+                characteristics: Object.entries(characteristics).map(([key, value]) => `${key}: ${value}`),
+                description,
+                site,
+                type,
+                lastChecked: currentDate.toString()
+            }
+        }]);
+        
     }
 
     await prisma.apartment.deleteMany({
@@ -34,6 +120,7 @@ async function saveToDatabase(data: Data[]): Promise<void> {
             ],
         },
     });
+    await cleanUpOldPineconeEntries(index, currentDate);
 }
 
 async function scrapeCurrentPage(page: Page, data: Data[]): Promise<void> {
@@ -131,7 +218,7 @@ async function scrapeAllPages(page: Page, data: Data[], currentPage: number = 1)
         try {
             await page.goto(`https://almaty.etagi.com/realty_rent/?page=${currentPage}`);
             isLastPage = await page.$eval('div.ZJ0dK', div => div.textContent === 'Ничего не найдено').catch(() => false);
-            if (!isLastPage) {
+            if (!isLastPage && currentPage!=50) {
                 await scrapeCurrentPage(page, data);
 
                 const nextPageExists = await page.$('button.jJShB.Y5bqE._jBUx.GmYmq.zPhuj') !== null;
