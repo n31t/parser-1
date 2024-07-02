@@ -55,6 +55,7 @@ async function scrapeCurrentPage(page: Page, data: Data[]): Promise<void> {
     
             if (descriptionElement) {
                 description = await detailPage.$eval('div.js-description.a-text.a-text-white-spaces', el => el.textContent || '');
+                description = description.replace(/\n/g, ' ');
                 // console.log(description);
             } else {
                 description = "Нет описания"

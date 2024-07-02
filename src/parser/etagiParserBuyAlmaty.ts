@@ -2,12 +2,48 @@ import puppeteer, { Page } from "puppeteer";
 import { Characteristics, Data, MainCharacteristics } from "./types/apartments";
 import { PrismaClient } from "@prisma/client";
 import { autoScroll, getRandomDelay, getRandomUserAgent } from "./utils/utils";
-import cron from 'node-cron';
 
+import cron from 'node-cron';
+let { GoogleGenerativeAIEmbeddings } = require("@langchain/google-genai");
+import pinecone from "../pinecone";
 const prisma = new PrismaClient();
+
+async function cleanUpOldPineconeEntries(index, currentDate) {
+    const deleteOlderThanDate = new Date(currentDate);
+    deleteOlderThanDate.setDate(deleteOlderThanDate.getDate() - 1); // Adjust the number of days as needed
+
+    const results = await index.listPaginated({ prefix: 'doc1#' });
+    const allIds = results.vectors.map((vector) => vector.id);
+
+    let idsToDelete: string[] = []; // Explicitly define the type of idsToDelete
+
+    for (const id of allIds) {
+        const vector = await index.fetch([id]);
+        const metadata = vector.vectors[id]?.metadata;
+
+        if (metadata && metadata.site === "etagi" && metadata.type === "buy" && new Date(metadata.lastChecked) < deleteOlderThanDate) {
+            idsToDelete.push(id);
+        }
+    }
+
+    if (idsToDelete.length > 0) {
+        await index.delete(idsToDelete);
+        console.log(`Deleted ${idsToDelete.length} old vectors from Pinecone.`);
+    } else {
+        console.log("No old vectors found to delete.");
+    }
+}
 
 async function saveToDatabase(data: Data[]): Promise<void> {
     const currentDate = new Date();
+    const embeddings = new GoogleGenerativeAIEmbeddings({
+        model: "embedding-001", // 768 dimensions
+    });
+
+    const indexName = "homespark2";
+    const index = pinecone.index(indexName);
+
+
     for (const { link, characteristics, mainCharacteristics, description,site, type } of data) {
         const { price, location, floor, number, photos } = mainCharacteristics;
         await prisma.apartment.upsert({
@@ -15,8 +51,38 @@ async function saveToDatabase(data: Data[]): Promise<void> {
             update: { price, location, floor, number, photos, characteristics, description, lastChecked: currentDate, site, type },
             create: { link, price, location, floor, number, photos, characteristics, description, lastChecked: currentDate, site, type },
         });
-    }
 
+        // Prepare text for embedding
+        const text = `${description} 
+        ${price} 
+        ${location} 
+        ${floor} 
+        ${characteristics}`;
+        
+        // Generate embedding for Pinecone
+        const embedding = await embeddings.embedDocuments([text]);
+        console.log("length of embeddings: " + embedding.length);
+
+        const flattenedEmbedding = embedding.flat();
+
+        //Upsert data to Pinecone
+        await index.upsert([{
+            id: link,
+            values: flattenedEmbedding,
+            metadata: {
+                link,
+                price,
+                location,
+                floor,
+                characteristics: Object.values(characteristics),
+                description,
+                site,
+                type,
+                lastChecked: currentDate.toString()
+            }
+        }])
+    }
+    
     await prisma.apartment.deleteMany({
         where: {
             AND: [
@@ -34,6 +100,8 @@ async function saveToDatabase(data: Data[]): Promise<void> {
             ],
         },
     });
+
+    await cleanUpOldPineconeEntries(index, currentDate);
 }
 
 async function scrapeCurrentPage(page: Page, data: Data[]): Promise<void> {
@@ -63,6 +131,7 @@ async function scrapeCurrentPage(page: Page, data: Data[]): Promise<void> {
             const descriptionElement = await detailPage.$('div.tv2WS');
             if (descriptionElement) {
                 description = await detailPage.evaluate(el => el.textContent || '', descriptionElement);
+                description = description.replace(/\n/g, ' ');
             }
 
             const characteristics = await detailPage.$$eval('div[data-testid="object_characteristics"] li.gWNDI', items => {
@@ -175,23 +244,6 @@ async function etagiParseBuyAlmaty(): Promise<Data[]> {
     
     return data;
 }
-
-// function scheduleScraper() {
-//     async function runScraper() {
-//         try {
-//             await parseData();
-//             console.log('Scraping completed successfully');
-//         } catch (error) {
-//             console.error('Error during scraping process:', error);
-//         }
-//     }
-//     runScraper();
-
-//     // Schedule the scraper to run every 12 hours using node-cron
-//     cron.schedule('0 */12 * * *', runScraper);
-// }
-
-// scheduleScraper();
 
 
 export default etagiParseBuyAlmaty;

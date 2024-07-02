@@ -60,6 +60,7 @@ async function scrapeCurrentPage(page: Page, data: Data[]): Promise<void> {
             const descriptionElement = await detailPage.$('div.tv2WS');
             if (descriptionElement) {
                 description = await detailPage.evaluate(el => el.textContent || '', descriptionElement);
+                description = description.replace(/\n/g, ' ');
             }
 
             const characteristics = await detailPage.$$eval('div[data-testid="object_characteristics"] li.gWNDI', items => {
