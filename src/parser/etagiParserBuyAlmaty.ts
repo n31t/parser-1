@@ -45,6 +45,7 @@ async function cleanUpOldPineconeEntries(index, currentDate) {
 //COPY PINECONE CODE
 async function saveToDatabase(data: Data[]): Promise<void> {
     const currentDate = new Date();
+    
     //COPY PINECONE CODE
     const embeddings = new GoogleGenerativeAIEmbeddings({
         model: "embedding-001", // 768 dimensions
@@ -53,14 +54,32 @@ async function saveToDatabase(data: Data[]): Promise<void> {
     const indexName = "homespark2";
     const index = pinecone.index(indexName);
     //COPY PINECONE CODE
-
+    const maxRetries = 5;
+    const delay = 5000; 
     for (const { link, characteristics, mainCharacteristics, description,site, type } of data) {
         const { price, location, floor, number, photos } = mainCharacteristics;
-        await prisma.apartment.upsert({
-            where: { link },
-            update: { price, location, floor, number, photos, characteristics, description, lastChecked: currentDate, site, type },
-            create: { link, price, location, floor, number, photos, characteristics, description, lastChecked: currentDate, site, type },
-        });
+        for (let i = 0; i < maxRetries; i++) {
+            try {
+                await prisma.apartment.upsert({
+                    where: { link },
+                    update: { price, location, floor, number, photos, characteristics,description, lastChecked: currentDate, site, type },
+                    create: { link, price, location, floor, number, photos, characteristics, description, lastChecked: currentDate, site, type },
+                });
+
+                // If the operation is successful, break the loop
+                break;
+            } catch (error) {
+                console.error(`Attempt ${i + 1} to save data failed. Retrying in ${delay / 1000} seconds...`, error);
+
+                // If this was the last attempt, rethrow the error
+                if (i === maxRetries - 1) {
+                    throw error;
+                }
+
+                // Wait before retrying
+                await new Promise(resolve => setTimeout(resolve, delay));
+            }
+        }
 
         //COPY PINECONE CODE
         const text = `${description} 
@@ -122,19 +141,16 @@ async function scrapeCurrentPage(page: Page, data: Data[]): Promise<void> {
         let detailPage: any; // Assuming detailPage is of any type. Replace with actual type.
         try {
             console.log(`Scraping link: ${link}`);
-
             detailPage = await page.browser().newPage();
             const userAgent = getRandomUserAgent();
             await detailPage.setUserAgent(userAgent);
             await detailPage.goto(link);
 
-            // await detailPage.click('button.plr_dNP.plr_yks.plr_gY6.plr_l4J');
             const buttons = await detailPage.$$('button.cuZ5z.Ave0A.jJShB.tOs6D._0LC_o.GmYmq.zPhuj');
-            if(buttons.length > 1){
+            if (buttons.length > 1) {
                 await buttons[1].click();
                 await buttons[0].click();
-            }
-            else{
+            } else if (buttons.length > 0) {
                 await buttons[0].click();
             }
 
@@ -162,6 +178,7 @@ async function scrapeCurrentPage(page: Page, data: Data[]): Promise<void> {
                 const priceNumber = parseInt(priceText.replace(/\s|₸/g, ''), 10);
                 return priceNumber;
             });
+
             const floor = await detailPage.$eval('span[data-testid="object_title"]', el => el.textContent || '');
             const location = await detailPage.$eval('div[data-testid="object_address"]', el => {
                 const clone = el.cloneNode(true) as HTMLElement;
@@ -197,10 +214,9 @@ async function scrapeCurrentPage(page: Page, data: Data[]): Promise<void> {
             const type = "buy";   // Adding the type field
 
             data.push({ link, characteristics, mainCharacteristics, description, site, type });
-            // console.log(`Extracted data: ${JSON.stringify({ link, characteristics, mainCharacteristics }, null, 2)}`);
         } catch (error) {
             console.error(`Error scraping link ${link}:`, error);
-        }finally {
+        } finally {
             await detailPage.close();
         }
     }
@@ -208,15 +224,15 @@ async function scrapeCurrentPage(page: Page, data: Data[]): Promise<void> {
 
 async function scrapeAllPages(page: Page, data: Data[], currentPage: number = 1): Promise<void> {
     let isLastPage = false;
-    
+
     while (!isLastPage) {
         console.log(`Scraping page ${currentPage}...`);
         try {
             await page.goto(`https://almaty.etagi.com/realty/?page=${currentPage}`);
             isLastPage = await page.$eval('div.ZJ0dK', div => div.textContent === 'Ничего не найдено').catch(() => false);
-            if (!isLastPage && currentPage<50) {
+            
+            if (!isLastPage && currentPage < 50) {
                 await scrapeCurrentPage(page, data);
-
                 const nextPageExists = await page.$('button.jJShB.Y5bqE._jBUx.GmYmq.zPhuj') !== null;
 
                 if (nextPageExists) {
@@ -231,7 +247,13 @@ async function scrapeAllPages(page: Page, data: Data[], currentPage: number = 1)
             }
         } catch (error) {
             console.error(`Error scraping page ${currentPage}:`, error);
-            // Continue to next page if an error occurs
+            // Close the current browser instance and create a new one
+            await page.browser().close();
+            const newBrowser = await puppeteer.launch({
+                args: ['--no-sandbox', '--disable-setuid-sandbox'],
+            });
+            const newPage = await newBrowser.newPage();
+            page = newPage; 
             currentPage++;
             if (currentPage > 500) {
                 return;

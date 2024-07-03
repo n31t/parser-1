@@ -260,6 +260,12 @@ async function scrapeAllPages(page: Page, data: Data[], currentPage: number = 1)
         } catch (error) {
             console.error(`Error scraping page ${currentPage}:`, error);
             // Continue to next page if an error occurs
+            await page.browser().close();
+            const newBrowser = await puppeteer.launch({
+                args: ['--no-sandbox', '--disable-setuid-sandbox'],
+            });
+            const newPage = await newBrowser.newPage();
+            page = newPage; 
             currentPage++;
             if (currentPage > 1000) {
                 return;
