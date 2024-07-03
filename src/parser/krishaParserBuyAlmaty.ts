@@ -10,28 +10,36 @@ const prisma = new PrismaClient();
 
 async function cleanUpOldPineconeEntries(index, currentDate) {
     const deleteOlderThanDate = new Date(currentDate);
-    deleteOlderThanDate.setDate(deleteOlderThanDate.getDate() - 1); // Adjust the number of days as needed
-
-    const results = await index.listPaginated({ prefix: 'doc1#' });
-    const allIds = results.vectors.map((vector) => vector.id);
-
-    let idsToDelete: string[] = []; // Explicitly define the type of idsToDelete
-
-    for (const id of allIds) {
-        const vector = await index.fetch([id]);
-        const metadata = vector.vectors[id]?.metadata;
-
-        if (metadata && metadata.site === "krisha" && metadata.type === "buy" && new Date(metadata.lastChecked) < deleteOlderThanDate) {
-            idsToDelete.push(id);
+    deleteOlderThanDate.setDate(deleteOlderThanDate.getDate() - 1);
+    const embeddedPrompt = await new GoogleGenerativeAIEmbeddings().embedQuery('delete old vectors from Pinecone.');
+        
+        
+        let results = await index.query({
+            vector: embeddedPrompt,
+            topK: 10000, 
+            filter: {
+                type: "buy",
+                site: "krisha",
+            },
+            includeMetadata: true,
+        });
+        const allIds = results.matches.map((match) => match.id);
+        let idsToDelete: string[] = [];
+        
+        for (const id of allIds) {
+            const vector = await index.fetch([id]);
+            const metadata = vector.records[id]?.metadata;
+            if (metadata && metadata.site === "krisha" && metadata.type === "buy" && new Date(metadata.lastChecked).getTime() < deleteOlderThanDate.getTime()) {
+                idsToDelete.push(id);
+            }
         }
-    }
-
-    if (idsToDelete.length > 0) {
-        await index.delete(idsToDelete);
-        console.log(`Deleted ${idsToDelete.length} old vectors from Pinecone.`);
-    } else {
-        console.log("No old vectors found to delete.");
-    }
+        
+        if (idsToDelete.length > 0) {
+            await index.deleteMany(idsToDelete);
+            console.log(`Deleted ${idsToDelete.length} old vectors from Pinecone.`);
+        } else {
+            console.log("No old vectors found to delete.");
+        }
 }
 
 async function saveToDatabase(data: Data[]): Promise<void> {
@@ -126,6 +134,7 @@ async function scrapeCurrentPage(page: Page, data: Data[]): Promise<void> {
     const links = await page.$$eval('a.a-card__title', anchors => anchors.map(anchor => anchor.href));
 
     for (const link of links) {
+        let detailPage: any; // Assuming detailPage is of any type. Replace with actual type.
         try {
             console.log(`Scraping link: ${link}`);
             const detailPage = await page.browser().newPage();
@@ -241,10 +250,13 @@ async function scrapeCurrentPage(page: Page, data: Data[]): Promise<void> {
             data.push({ link, characteristics, mainCharacteristics, description, site, type });
             // console.log(`Extracted data: ${JSON.stringify({ link, characteristics, mainCharacteristics }, null, 2)}`);
             await new Promise(resolve => setTimeout(resolve, getRandomDelay(2000, 5000))); // Random delay between 40 to 80 seconds
-            await detailPage.close();
         } catch (error) {
             console.error(`Error scraping link ${link}:`, error);
             await new Promise(resolve => setTimeout(resolve, getRandomDelay(2000, 5000))); // Random delay between 40 to 80 seconds
+        } finally {
+            if (detailPage) {
+                await detailPage.close();
+            }
         }
     }
 }
@@ -257,7 +269,7 @@ async function scrapeAllPages(page: Page, data: Data[], currentPage: number = 1)
         try {
             await page.goto(`https://krisha.kz/prodazha/kvartiry/almaty/?das[_sys.hasphoto]=1&das[who]=1&page=${currentPage}`);
             isLastPage = await page.$('a.a-card__title') === null;
-            if (!isLastPage && currentPage!=50) {
+            if (!isLastPage && currentPage<15) {
                 await scrapeCurrentPage(page, data);
                 await new Promise(resolve => setTimeout(resolve, getRandomDelay(2000, 5000))); // Random delay between 2 to 5 seconds
                 currentPage++;

@@ -32,15 +32,15 @@ async function runScrapers() {
   try {
       console.log('Starting concurrent scraping...');
       await Promise.all([
-          // etagiParseBuyAlmaty().then(() => {
-          //     console.log('Finished scraping for buy.');
-          // }),
+          etagiParseBuyAlmaty().then(() => {
+              console.log('Finished scraping for buy.');
+          }),
           // etagiParseRentAlmaty().then(() => {
           //     console.log('Finished scraping for rent.');
           // }),
-          krishaParseBuyAlmaty().then(() => {
-              console.log('Finished scraping for buy.');
-          }),
+          // krishaParseBuyAlmaty().then(() => {
+          //     console.log('Finished scraping for buy.');
+          // }),
           // krishaParseRentAlmaty().then(() => {
           //     console.log('Finished scraping for rent.');
           // }),

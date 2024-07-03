@@ -11,28 +11,36 @@ const prisma = new PrismaClient();
 
 async function cleanUpOldPineconeEntries(index, currentDate) {
     const deleteOlderThanDate = new Date(currentDate);
-    deleteOlderThanDate.setDate(deleteOlderThanDate.getDate() - 1); // Adjust the number of days as needed
-
-    const results = await index.listPaginated({ prefix: 'doc1#' });
-    const allIds = results.vectors.map((vector) => vector.id);
-
-    let idsToDelete: string[] = []; // Explicitly define the type of idsToDelete
-
-    for (const id of allIds) {
-        const vector = await index.fetch([id]);
-        const metadata = vector.vectors[id]?.metadata;
-
-        if (metadata && metadata.site === "etagi" && metadata.type === "buy" && new Date(metadata.lastChecked) < deleteOlderThanDate) {
-            idsToDelete.push(id);
+    deleteOlderThanDate.setDate(deleteOlderThanDate.getDate() - 1);
+    const embeddedPrompt = await new GoogleGenerativeAIEmbeddings().embedQuery('delete old vectors from Pinecone.');
+        
+        
+        let results = await index.query({
+            vector: embeddedPrompt,
+            topK: 10000, // Retrieve more vectors initially
+            filter: {
+                type: "buy",
+                site: "etagi",
+            },
+            includeMetadata: true,
+        });
+        const allIds = results.matches.map((match) => match.id);
+        let idsToDelete: string[] = [];
+        
+        for (const id of allIds) {
+            const vector = await index.fetch([id]);
+            const metadata = vector.records[id]?.metadata;
+            if (metadata && metadata.site === "etagi" && metadata.type === "buy" && new Date(metadata.lastChecked).getTime() < deleteOlderThanDate.getTime()) {
+                idsToDelete.push(id);
+            }
         }
-    }
-
-    if (idsToDelete.length > 0) {
-        await index.delete(idsToDelete);
-        console.log(`Deleted ${idsToDelete.length} old vectors from Pinecone.`);
-    } else {
-        console.log("No old vectors found to delete.");
-    }
+        
+        if (idsToDelete.length > 0) {
+            await index.deleteMany(idsToDelete);
+            console.log(`Deleted ${idsToDelete.length} old vectors from Pinecone.`);
+        } else {
+            console.log("No old vectors found to delete.");
+        }
 }
 //COPY PINECONE CODE
 async function saveToDatabase(data: Data[]): Promise<void> {
@@ -111,10 +119,11 @@ async function scrapeCurrentPage(page: Page, data: Data[]): Promise<void> {
     const links = await page.$$eval('a.templates-object-card__body.yQfYt', anchors => anchors.map(anchor => anchor.href));
 
     for (const link of links) {
+        let detailPage: any; // Assuming detailPage is of any type. Replace with actual type.
         try {
             console.log(`Scraping link: ${link}`);
 
-            const detailPage = await page.browser().newPage();
+            detailPage = await page.browser().newPage();
             const userAgent = getRandomUserAgent();
             await detailPage.setUserAgent(userAgent);
             await detailPage.goto(link);
@@ -189,14 +198,15 @@ async function scrapeCurrentPage(page: Page, data: Data[]): Promise<void> {
 
             data.push({ link, characteristics, mainCharacteristics, description, site, type });
             // console.log(`Extracted data: ${JSON.stringify({ link, characteristics, mainCharacteristics }, null, 2)}`);
-            await detailPage.close();
         } catch (error) {
             console.error(`Error scraping link ${link}:`, error);
+        }finally {
+            await detailPage.close();
         }
     }
 }
 
-async function scrapeAllPages(page: Page, data: Data[], currentPage: number = 1): Promise<void> {
+async function scrapeAllPages(page: Page, data: Data[], currentPage: number = 100): Promise<void> {
     let isLastPage = false;
     
     while (!isLastPage) {
@@ -204,7 +214,7 @@ async function scrapeAllPages(page: Page, data: Data[], currentPage: number = 1)
         try {
             await page.goto(`https://almaty.etagi.com/realty/?page=${currentPage}`);
             isLastPage = await page.$eval('div.ZJ0dK', div => div.textContent === 'Ничего не найдено').catch(() => false);
-            if (!isLastPage && currentPage!=50) {
+            if (!isLastPage && currentPage<15) {
                 await scrapeCurrentPage(page, data);
 
                 const nextPageExists = await page.$('button.jJShB.Y5bqE._jBUx.GmYmq.zPhuj') !== null;
