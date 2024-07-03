@@ -250,7 +250,7 @@ async function scrapeAllPages(page: Page, data: Data[], currentPage: number = 1)
         try {
             await page.goto(`https://krisha.kz/arenda/kvartiry-posutochno/almaty/?das[_sys.hasphoto]=1&das[who]=1&rent-period-switch=%2Farenda%2Fkvartiry-posutochno&page=${currentPage}`);
             isLastPage = await page.$('a.a-card__title') === null;
-            if (!isLastPage && currentPage<15) {
+            if (!isLastPage && currentPage<50) {
                 await scrapeCurrentPage(page, data);
                 await new Promise(resolve => setTimeout(resolve, getRandomDelay(2000, 5000))); // Random delay between 2 to 5 seconds
                 currentPage++;
