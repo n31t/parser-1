@@ -60,7 +60,7 @@ function scheduleScrapers() {
   cron.schedule('0 0 * * *', runScrapers);
 }
 
-scheduleScrapers();
+// scheduleScrapers();
 
 // saveDataToDB();
 // setInterval(saveDataToDB, 30 * 60 * 1000);
