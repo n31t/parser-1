@@ -4,7 +4,6 @@ import globalRouter from './global-router';
 import { logger } from './logger';
 import krishaParseRentAlmaty from './parser/krishaParserRentAlmaty';
 // import parseData from './parser/etagiParserRentAlmaty';
-import scheduleScraper from './parser/etagiParserBuyAlmaty';
 import cron from 'node-cron';
 import etagiParseBuyAlmaty from './parser/etagiParserBuyAlmaty';
 import etagiParseRentAlmaty from './parser/etagiParserRentAlmaty';
@@ -33,32 +32,60 @@ app.listen(PORT, () => {
   console.log(`Server runs at http://localhost:${PORT}`);
 });
 
+// async function runScrapers() {
+//   try {
+//       console.log('Starting concurrent scraping...');
+//       await Promise.all([
+//           etagiParseBuyAlmaty().then(() => {
+//               console.log('Finished scraping for buy.');
+//           }),
+//           etagiParseRentAlmaty().then(() => {
+//               console.log('Finished scraping for rent.');
+//           }),
+//           krishaParseBuyAlmaty().then(() => {
+//               console.log('Finished scraping for buy.');
+//           }),
+//           krishaParseRentAlmaty().then(() => {
+//               console.log('Finished scraping for rent.');
+//           }),
+//           krishaParseDailyAlmaty().then(() => {
+//               console.log('Finished scraping for daily.');
+//           }),
+//       ]);
+//       console.log('All scraping tasks completed.');
+//   } catch (error) {
+//       console.error('Error during scraping process:', error);
+//   }
+// }
 async function runScrapers() {
   try {
-      console.log('Starting concurrent scraping...');
-      await Promise.all([
-          // etagiParseBuyAlmaty().then(() => {
-          //     console.log('Finished scraping for buy.');
-          // }),
-          // etagiParseRentAlmaty().then(() => {
-          //     console.log('Finished scraping for rent.');
-          // }),
-          // krishaParseBuyAlmaty().then(() => {
-          //     console.log('Finished scraping for buy.');
-          // }),
-          krishaParseRentAlmaty().then(() => {
-              console.log('Finished scraping for rent.');
-          }),
-          // krishaParseDailyAlmaty().then(() => {
-          //     console.log('Finished scraping for daily.');
-          // }),
-      ]);
-      console.log('All scraping tasks completed.');
+    console.log('Starting concurrent scraping...');
+
+    // Run the first two tasks concurrently
+    await Promise.all([
+      etagiParseBuyAlmaty().then(() => {
+        console.log('Finished scraping for buy.');
+      }),
+      etagiParseRentAlmaty().then(() => {
+        console.log('Finished scraping for rent.');
+      }),
+    ]);
+
+    // Run the next two tasks concurrently
+    await Promise.all([
+      krishaParseBuyAlmaty().then(() => {
+        console.log('Finished scraping for buy.');
+      }),
+      krishaParseRentAlmaty().then(() => {
+        console.log('Finished scraping for rent.');
+      }),
+    ]);
+
+    console.log('All scraping tasks completed.');
   } catch (error) {
-      console.error('Error during scraping process:', error);
+    console.error('Error during scraping process:', error);
   }
 }
-
 function scheduleScrapers() {
   runScrapers();
 
