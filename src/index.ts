@@ -23,10 +23,10 @@ app.get('/helloworld',(request,response) =>{
   response.send("Hello World!");
 })
 
-app.get('/runschedule'), (request,response) => {
-  scheduleScraper();
-  response.send('Schedule is running');
-}
+// app.get('/runschedule'), (request,response) => {
+//   scheduleScraper();
+//   response.send('Schedule is running');
+// }
 
 
 app.listen(PORT, () => {
@@ -65,7 +65,7 @@ function scheduleScrapers() {
   cron.schedule('0 0 * * *', runScrapers);
 }
 
-// scheduleScrapers();
+scheduleScrapers();
 
 // saveDataToDB();
 // setInterval(saveDataToDB, 30 * 60 * 1000);
