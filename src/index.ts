@@ -23,6 +23,11 @@ app.get('/helloworld',(request,response) =>{
   response.send("Hello World!");
 })
 
+app.get('/runschedule'), (request,response) => {
+  scheduleScraper();
+  response.send('Schedule is running');
+}
+
 
 app.listen(PORT, () => {
   console.log(`Server runs at http://localhost:${PORT}`);
