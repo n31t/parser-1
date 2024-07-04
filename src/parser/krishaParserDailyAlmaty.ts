@@ -109,12 +109,14 @@ async function saveToDatabase(data: Data[]): Promise<void> {
         await cleanUpOldPineconeEntries(index, currentDate);
     }
 
+    const deleteOlderThanDate = new Date(currentDate);
+    deleteOlderThanDate.setDate(deleteOlderThanDate.getDate() - 1);
     await prisma.apartment.deleteMany({
         where: {
             AND: [
                 {
                     lastChecked: {
-                        lt: currentDate,
+                        lt: deleteOlderThanDate,
                     },
                 },
                 {
