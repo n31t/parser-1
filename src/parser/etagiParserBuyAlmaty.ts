@@ -231,7 +231,7 @@ async function scrapeAllPages(page: Page, data: Data[], currentPage: number = 1)
             await page.goto(`https://almaty.etagi.com/realty/?page=${currentPage}`);
             isLastPage = await page.$eval('div.ZJ0dK', div => div.textContent === 'Ничего не найдено').catch(() => false);
             
-            if (!isLastPage && currentPage < Number(process.env.PARSER_PAGE_LIMIT)) {
+            if (!isLastPage && currentPage < 50) {
                 await scrapeCurrentPage(page, data);
                 const nextPageExists = await page.$('button.jJShB.Y5bqE._jBUx.GmYmq.zPhuj') !== null;
 
