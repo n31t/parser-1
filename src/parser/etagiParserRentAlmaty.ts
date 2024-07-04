@@ -87,7 +87,7 @@ async function saveToDatabase(data: Data[]): Promise<void> {
         ${characteristics}`;
         
         // Generate embedding for Pinecone
-        const embedding = await embeddings.embedDocuments('delete old vectors from Pinecone.');
+        const embedding = await embeddings.embedDocuments('description');
         console.log("length of embeddings: " + embedding.length);
 
         const flattenedEmbedding = embedding.flat();
