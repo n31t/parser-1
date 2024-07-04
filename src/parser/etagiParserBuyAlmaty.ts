@@ -243,6 +243,7 @@ async function scrapeAllPages(page: Page, data: Data[], currentPage: number = 1)
                     console.log("Last page reached");
                 }
             } else {
+                isLastPage = true;
                 console.log("Last page reached");
             }
         } catch (error) {

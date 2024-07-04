@@ -87,7 +87,7 @@ async function saveToDatabase(data: Data[]): Promise<void> {
         ${characteristics}`;
         
         // Generate embedding for Pinecone
-        const embedding = await embeddings.embedDocuments('description');
+        const embedding = await embeddings.embedDocuments([text]);
         console.log("length of embeddings: " + embedding.length);
 
         const flattenedEmbedding = embedding.flat();
@@ -241,6 +241,7 @@ async function scrapeAllPages(page: Page, data: Data[], currentPage: number = 1)
                     console.log("Last page reached");
                 }
             } else {
+                isLastPage = true;
                 console.log("Last page reached");
             }
         } catch (error) {
