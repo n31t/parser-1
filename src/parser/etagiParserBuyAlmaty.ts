@@ -231,17 +231,17 @@ async function scrapeAllPages(page: Page, data: Data[], currentPage: number = 1)
             await page.goto(`https://almaty.etagi.com/realty/?page=${currentPage}`);
             isLastPage = await page.$eval('div.ZJ0dK', div => div.textContent === 'Ничего не найдено').catch(() => false);
             
-            if (!isLastPage && currentPage < 50) {
+            if (!isLastPage && (currentPage < Number(process.env.PARSER_PAGE_LIMIT))) {
                 await scrapeCurrentPage(page, data);
-                const nextPageExists = await page.$('button.jJShB.Y5bqE._jBUx.GmYmq.zPhuj') !== null;
+                // const nextPageExists = await page.$('button.jJShB.Y5bqE._jBUx.GmYmq.zPhuj') !== null;
 
-                if (nextPageExists) {
+                // if (nextPageExists) {
                     await new Promise(resolve => setTimeout(resolve, getRandomDelay(2000, 5000))); // Random delay between 2 to 5 seconds
                     currentPage++;
-                } else {
-                    isLastPage = true;
-                    console.log("Last page reached");
-                }
+                // } else {
+                //     isLastPage = true;
+                //     console.log("Last page reached");
+                // }
             } else {
                 isLastPage = true;
                 console.log("Last page reached");
@@ -267,7 +267,7 @@ async function etagiParseBuyAlmaty(): Promise<Data[]> {
     const browser = await puppeteer.launch({
         args: ['--no-sandbox', '--disable-setuid-sandbox'],
       });
-    const page = await browser.newPage();
+    const page = await browser.newPage( );
     const data: Data[] = [];
 
     try {

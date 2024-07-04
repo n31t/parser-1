@@ -65,7 +65,6 @@ async function saveToDatabase(data: Data[]): Promise<void> {
                     create: { link, price, location, floor, number, photos, characteristics, description, lastChecked: currentDate, site, type },
                 });
 
-                // If the operation is successful, break the loop
                 break;
             } catch (error) {
                 console.error(`Attempt ${i + 1} to save data failed. Retrying in ${delay / 1000} seconds...`, error);
@@ -228,18 +227,18 @@ async function scrapeAllPages(page: Page, data: Data[], currentPage: number = 1)
         try {
             await page.goto(`https://almaty.etagi.com/realty_rent/?page=${currentPage}`);
             isLastPage = await page.$eval('div.ZJ0dK', div => div.textContent === 'Ничего не найдено').catch(() => false);
-            if (!isLastPage && currentPage<50) {
+            if (!isLastPage && currentPage<Number(process.env.PARSER_PAGE_LIMIT)) {
                 await scrapeCurrentPage(page, data);
 
-                const nextPageExists = await page.$('button.jJShB.Y5bqE._jBUx.GmYmq.zPhuj') !== null;
+                // const nextPageExists = await page.$('button.jJShB.Y5bqE._jBUx.GmYmq.zPhuj') !== null;
 
-                if (nextPageExists) {
+                // if (nextPageExists) {
                     await new Promise(resolve => setTimeout(resolve, getRandomDelay(2000, 5000))); // Random delay between 2 to 5 seconds
                     currentPage++;
-                } else {
-                    isLastPage = true;
-                    console.log("Last page reached");
-                }
+                // } else {
+                //     isLastPage = true;
+                //     console.log("Last page reached");
+                // }
             } else {
                 isLastPage = true;
                 console.log("Last page reached");
