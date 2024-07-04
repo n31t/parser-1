@@ -11,7 +11,7 @@ const prisma = new PrismaClient();
 async function cleanUpOldPineconeEntries(index, currentDate) {
     const deleteOlderThanDate = new Date(currentDate);
     deleteOlderThanDate.setDate(deleteOlderThanDate.getDate() - 1);
-    const embeddedPrompt = await new GoogleGenerativeAIEmbeddings().embedQuery(['delete old vectors from Pinecone.']);
+    const embeddedPrompt = await new GoogleGenerativeAIEmbeddings().embedQuery('delete old vectors from Pinecone.');
         
         
         let results = await index.query({
@@ -228,7 +228,7 @@ async function scrapeAllPages(page: Page, data: Data[], currentPage: number = 1)
         try {
             await page.goto(`https://almaty.etagi.com/realty_rent/?page=${currentPage}`);
             isLastPage = await page.$eval('div.ZJ0dK', div => div.textContent === 'Ничего не найдено').catch(() => false);
-            if (!isLastPage && currentPage<50) {
+            if (!isLastPage && currentPage<Number(process.env.PARSER_PAGE_LIMIT)) {
                 await scrapeCurrentPage(page, data);
 
                 const nextPageExists = await page.$('button.jJShB.Y5bqE._jBUx.GmYmq.zPhuj') !== null;
