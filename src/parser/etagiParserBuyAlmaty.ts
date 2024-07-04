@@ -12,7 +12,7 @@ const prisma = new PrismaClient();
 async function cleanUpOldPineconeEntries(index, currentDate) {
     const deleteOlderThanDate = new Date(currentDate);
     deleteOlderThanDate.setDate(deleteOlderThanDate.getDate() - 1);
-    const embeddedPrompt = await new GoogleGenerativeAIEmbeddings().embedQuery('delete old vectors from Pinecone.');
+    const embeddedPrompt = await new GoogleGenerativeAIEmbeddings().embedQuery(['delete old vectors from Pinecone.']);
         
         
         let results = await index.query({
