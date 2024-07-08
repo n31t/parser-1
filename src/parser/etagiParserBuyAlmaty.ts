@@ -51,7 +51,7 @@ async function saveToDatabase(data: Data[]): Promise<void> {
         model: "embedding-001", // 768 dimensions
     });
 
-    const indexName = "homespark2";
+    const indexName = "homespark3";
     const index = pinecone.index(indexName);
     //COPY PINECONE CODE
     const maxRetries = 5;

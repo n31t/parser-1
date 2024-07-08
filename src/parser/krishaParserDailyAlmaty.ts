@@ -48,7 +48,7 @@ async function saveToDatabase(data: Data[]): Promise<void> {
         model: "embedding-001", // 768 dimensions
     });
 
-    const indexName = "homespark2";
+    const indexName = "homespark3";
     const index = pinecone.index(indexName);
     const maxRetries = 5;
     const delay = 5000; 
@@ -257,6 +257,7 @@ async function scrapeAllPages(page: Page, data: Data[], currentPage: number = 1)
                 await new Promise(resolve => setTimeout(resolve, getRandomDelay(2000, 5000))); // Random delay between 2 to 5 seconds
                 currentPage++;
             } else {
+                isLastPage = true;
                 console.log("Last page reached");
             }
         } catch (error) {
