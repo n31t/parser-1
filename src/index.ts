@@ -66,25 +66,28 @@ async function runScrapers() {
       etagiParseBuyAlmaty().then(() => {
         console.log('Finished scraping for buy.');
       }),
-      // etagiParseRentAlmaty().then(() => {
-      //   console.log('Finished scraping for rent.');
-      // }),
+      etagiParseRentAlmaty().then(() => {
+        console.log('Finished scraping for rent.');
+      }),
     ]);
-    // await Promise.all([
-    //   krishaParseDailyAlmaty().then(() => {
-    //     console.log('Finished scraping for buy.');
-    //   }),
-    // ]);
+    await Promise.all([
+      krishaParseDailyAlmaty().then(() => {
+        console.log('Finished scraping for buy.');
+      }),
+    ]);
 
-    // // Run the next two tasks concurrently
-    // await Promise.all([
-    //   krishaParseBuyAlmaty().then(() => {
-    //     console.log('Finished scraping for buy.');
-    //   }),
-    //   krishaParseRentAlmaty().then(() => {
-    //     console.log('Finished scraping for rent.');
-    //   }),
-    // ]);
+    // Run the next two tasks concurrently
+    await Promise.all([
+      krishaParseBuyAlmaty().then(() => {
+        console.log('Finished scraping for buy.');
+      }),
+    ]);
+
+    await Promise.all([
+      krishaParseRentAlmaty().then(() => {
+        console.log('Finished scraping for buy.');
+      }),
+    ]);
 
     console.log('All scraping tasks completed.');
   } catch (error) {
