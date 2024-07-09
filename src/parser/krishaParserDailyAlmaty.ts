@@ -106,7 +106,6 @@ async function saveToDatabase(data: Data[]): Promise<void> {
                 lastChecked: currentDate.toString()
             }
         }])
-        await cleanUpOldPineconeEntries(index, currentDate);
     }
 
     const deleteOlderThanDate = new Date(currentDate);
@@ -128,6 +127,7 @@ async function saveToDatabase(data: Data[]): Promise<void> {
             ],
         },
     });
+    await cleanUpOldPineconeEntries(index, currentDate);
 }
 
 async function scrapeCurrentPage(page: Page, data: Data[]): Promise<void> {
