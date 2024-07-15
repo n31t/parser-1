@@ -1,46 +1,12 @@
 import puppeteer, { Page } from "puppeteer";
 import { Characteristics, Data, MainCharacteristics } from "./types/apartments";
 import { PrismaClient } from "@prisma/client";
-import { autoScroll, getRandomDelay, getRandomUserAgent } from "./utils/utils";
+import { autoScroll, cleanUpOldPineconeEntries, getRandomDelay, getRandomUserAgent } from "./utils/utils";
 import cron from 'node-cron';
 
 let { GoogleGenerativeAIEmbeddings } = require("@langchain/google-genai");
 import pinecone from "../pinecone";
 const prisma = new PrismaClient();
-
-async function cleanUpOldPineconeEntries(index, currentDate) {
-    const deleteOlderThanDate = new Date(currentDate);
-    deleteOlderThanDate.setDate(deleteOlderThanDate.getDate() - 1);
-    const embeddedPrompt = await new GoogleGenerativeAIEmbeddings().embedQuery('delete old vectors from Pinecone.');
-        
-        
-        let results = await index.query({
-            vector: embeddedPrompt,
-            topK: 10000, 
-            filter: {
-                type: "buy",
-                site: "krisha",
-            },
-            includeMetadata: true,
-        });
-        const allIds = results.matches.map((match) => match.id);
-        let idsToDelete: string[] = [];
-        
-        for (const id of allIds) {
-            const vector = await index.fetch([id]);
-            const metadata = vector.records[id]?.metadata;
-            if (metadata && metadata.site === "krisha" && metadata.type === "buy" && new Date(metadata.lastChecked).getTime() < deleteOlderThanDate.getTime()) {
-                idsToDelete.push(id);
-            }
-        }
-        
-        if (idsToDelete.length > 0) {
-            await index.deleteMany(idsToDelete);
-            console.log(`Deleted ${idsToDelete.length} old vectors from Pinecone.`);
-        } else {
-            console.log("No old vectors found to delete.");
-        }
-}
 
 async function saveToDatabase(data: Data[]): Promise<void> {
     const currentDate = new Date();
@@ -128,7 +94,7 @@ async function saveToDatabase(data: Data[]): Promise<void> {
             ],
         },
     });
-    await cleanUpOldPineconeEntries(index, currentDate);
+    await cleanUpOldPineconeEntries(index, currentDate, "buy", "krisha");
 }
 
 async function scrapeCurrentPage(page: Page, data: Data[]): Promise<void> {

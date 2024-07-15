@@ -74,6 +74,8 @@ export function getRandomDelay(min: number, max: number): number {
     return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
+
+
 export async function autoScroll(page: Page){
     await page.evaluate(() => {
         return new Promise<void>((resolve, reject) => {
@@ -91,4 +93,40 @@ export async function autoScroll(page: Page){
             }, 100);
         });
     });
+}
+
+
+export async function cleanUpOldPineconeEntries(index, currentDate, typeForDelete : string, siteForDelete : string) {
+    let { GoogleGenerativeAIEmbeddings } = require("@langchain/google-genai");
+    const deleteOlderThanDate = new Date(currentDate);
+    deleteOlderThanDate.setDate(deleteOlderThanDate.getDate() - 1);
+    const embeddedPrompt = await new GoogleGenerativeAIEmbeddings().embedQuery('delete old vectors from Pinecone.');
+        
+        
+        let results = await index.query({
+            vector: embeddedPrompt,
+            topK: 10000, // Retrieve more vectors initially
+            filter: {
+                type: typeForDelete,
+                site: siteForDelete,
+            },
+            includeMetadata: true,
+        });
+        const allIds = results.matches.map((match) => match.id);
+        let idsToDelete: string[] = [];
+        
+        for (const id of allIds) {
+            const vector = await index.fetch([id]);
+            const metadata = vector.records[id]?.metadata;
+            if (metadata && metadata.site === siteForDelete && metadata.type === typeForDelete && new Date(metadata.lastChecked).getTime() < deleteOlderThanDate.getTime()) {
+                idsToDelete.push(id);
+            }
+        }
+        
+        if (idsToDelete.length > 0) {
+            await index.deleteMany(idsToDelete);
+            console.log(`Deleted ${idsToDelete.length} old vectors from Pinecone.`);
+        } else {
+            console.log("No old vectors found to delete.");
+        }
 }

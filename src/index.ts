@@ -61,7 +61,6 @@ async function runScrapers() {
   try {
     console.log('Starting concurrent scraping...');
 
-    // Run the first two tasks concurrently
     await Promise.all([
       etagiParseBuyAlmaty().then(() => {
         console.log('Finished scraping for buy.');
@@ -76,7 +75,6 @@ async function runScrapers() {
       }),
     ]);
 
-    // Run the next two tasks concurrently
     await Promise.all([
       krishaParseBuyAlmaty().then(() => {
         console.log('Finished scraping for buy.');

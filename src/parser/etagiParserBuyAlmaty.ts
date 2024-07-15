@@ -1,59 +1,25 @@
 import puppeteer, { Page } from "puppeteer";
 import { Characteristics, Data, MainCharacteristics } from "./types/apartments";
 import { PrismaClient } from "@prisma/client";
-import { autoScroll, getRandomDelay, getRandomUserAgent } from "./utils/utils";
+import { autoScroll, cleanUpOldPineconeEntries, getRandomDelay, getRandomUserAgent } from "./utils/utils";
 
 import cron from 'node-cron';
-//COPY PINECONE CODE
+
 let { GoogleGenerativeAIEmbeddings } = require("@langchain/google-genai");
 import pinecone from "../pinecone";
 const prisma = new PrismaClient();
 
-async function cleanUpOldPineconeEntries(index, currentDate) {
-    const deleteOlderThanDate = new Date(currentDate);
-    deleteOlderThanDate.setDate(deleteOlderThanDate.getDate() - 1);
-    const embeddedPrompt = await new GoogleGenerativeAIEmbeddings().embedQuery('delete old vectors from Pinecone.');
-        
-        
-        let results = await index.query({
-            vector: embeddedPrompt,
-            topK: 10000, // Retrieve more vectors initially
-            filter: {
-                type: "buy",
-                site: "etagi",
-            },
-            includeMetadata: true,
-        });
-        const allIds = results.matches.map((match) => match.id);
-        let idsToDelete: string[] = [];
-        
-        for (const id of allIds) {
-            const vector = await index.fetch([id]);
-            const metadata = vector.records[id]?.metadata;
-            if (metadata && metadata.site === "etagi" && metadata.type === "buy" && new Date(metadata.lastChecked).getTime() < deleteOlderThanDate.getTime()) {
-                idsToDelete.push(id);
-            }
-        }
-        
-        if (idsToDelete.length > 0) {
-            await index.deleteMany(idsToDelete);
-            console.log(`Deleted ${idsToDelete.length} old vectors from Pinecone.`);
-        } else {
-            console.log("No old vectors found to delete.");
-        }
-}
-//COPY PINECONE CODE
+
 async function saveToDatabase(data: Data[]): Promise<void> {
     const currentDate = new Date();
     
-    //COPY PINECONE CODE
     const embeddings = new GoogleGenerativeAIEmbeddings({
         model: "embedding-001", // 768 dimensions
     });
 
     const indexName = "homespark3";
     const index = pinecone.index(indexName);
-    //COPY PINECONE CODE
+
     const maxRetries = 5;
     const delay = 5000; 
     for (const { link, characteristics, mainCharacteristics, description,site, type } of data) {
@@ -81,7 +47,6 @@ async function saveToDatabase(data: Data[]): Promise<void> {
             }
         }
 
-        //COPY PINECONE CODE
         const text = `${description} 
         ${price} 
         ${location} 
@@ -111,7 +76,7 @@ async function saveToDatabase(data: Data[]): Promise<void> {
             }
         }])
     }
-    
+    // Delete logic  
     const deleteOlderThanDate = new Date(currentDate);
     deleteOlderThanDate.setDate(deleteOlderThanDate.getDate() - 1);
     await prisma.apartment.deleteMany({
@@ -131,8 +96,8 @@ async function saveToDatabase(data: Data[]): Promise<void> {
             ],
         },
     });
-    //COPY PINECONE CODE
-    await cleanUpOldPineconeEntries(index, currentDate);
+
+    await cleanUpOldPineconeEntries(index, currentDate, "buy", "etagi");
 }
 
 async function scrapeCurrentPage(page: Page, data: Data[]): Promise<void> {
@@ -235,15 +200,9 @@ async function scrapeAllPages(page: Page, data: Data[], currentPage: number = 1)
             
             if (!isLastPage && (currentPage < Number(process.env.PARSER_PAGE_LIMIT))) {
                 await scrapeCurrentPage(page, data);
-                // const nextPageExists = await page.$('button.jJShB.Y5bqE._jBUx.GmYmq.zPhuj') !== null;
 
-                // if (nextPageExists) {
                     await new Promise(resolve => setTimeout(resolve, getRandomDelay(2000, 5000))); // Random delay between 2 to 5 seconds
                     currentPage++;
-                // } else {
-                //     isLastPage = true;
-                //     console.log("Last page reached");
-                // }
             } else {
                 isLastPage = true;
                 console.log("Last page reached");
