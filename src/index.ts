@@ -75,7 +75,7 @@ async function runScrapers() {
 function scheduleScrapers() {
   runScrapers();
 
-  cron.schedule('0 0 * * *', runScrapers);
+  cron.schedule('0 0 */2 * *', runScrapers);
 }
 
 scheduleScrapers();
