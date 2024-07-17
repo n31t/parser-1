@@ -46,11 +46,11 @@ async function runScrapers() {
     //     console.log('Finished scraping for rent.');
     //   }),
     // ]);
-    await Promise.all([
-      etagiParseBuyAlmaty().then(() => {
-        console.log('Finished scraping for buy.');
-      }),
-    ]);
+    // await Promise.all([
+    //   etagiParseBuyAlmaty().then(() => {
+    //     console.log('Finished scraping for buy.');
+    //   }),
+    // ]);
     await Promise.all([
       krishaParseDailyAlmaty().then(() => {
         console.log('Finished scraping for buy.');
