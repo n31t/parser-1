@@ -2,13 +2,18 @@ import 'dotenv/config';
 import express from 'express';
 import globalRouter from './global-router';
 import { logger } from './logger';
-import krishaParseRentAlmaty from './parser/krishaParserRentAlmaty';
 // import parseData from './parser/etagiParserRentAlmaty';
 import cron from 'node-cron';
-import etagiParseBuyAlmaty from './parser/etagiParserBuyAlmaty';
-import etagiParseRentAlmaty from './parser/etagiParserRentAlmaty';
-import krishaParseBuyAlmaty from './parser/krishaParserBuyAlmaty';
-import krishaParseDailyAlmaty from './parser/krishaParserDailyAlmaty';
+// import etagiParseBuyAlmaty from './parser/etagiParserBuyAlmaty';
+import etagiParseBuyAlmaty from './parser/redisEtagiParserBuyAlmaty';
+// import etagiParseRentAlmaty from './parser/etagiParserRentAlmaty';
+import etagiParseRentAlmaty from './parser/redisEtagiParserRentAlmaty';
+// import krishaParseBuyAlmaty from './parser/krishaParserBuyAlmaty';
+import krishaParseBuyAlmaty from './parser/redisKrishaParserBuyAlmaty';
+// import krishaParseDailyAlmaty from './parser/krishaParserDailyAlmaty';
+import krishaParseDailyAlmaty from './parser/redisKrishaParserDailyAlmaty';
+// import krishaParseRentAlmaty from './parser/krishaParserRentAlmaty';
+import krishaParseRentAlmaty from './parser/redisKrishaParserRentAlmaty';
 
 
 const app = express();
@@ -32,31 +37,6 @@ app.listen(PORT, () => {
   console.log(`Server runs at http://localhost:${PORT}`);
 });
 
-// async function runScrapers() {
-//   try {
-//       console.log('Starting concurrent scraping...');
-//       await Promise.all([
-//           etagiParseBuyAlmaty().then(() => {
-//               console.log('Finished scraping for buy.');
-//           }),
-//           etagiParseRentAlmaty().then(() => {
-//               console.log('Finished scraping for rent.');
-//           }),
-//           krishaParseBuyAlmaty().then(() => {
-//               console.log('Finished scraping for buy.');
-//           }),
-//           krishaParseRentAlmaty().then(() => {
-//               console.log('Finished scraping for rent.');
-//           }),
-//           krishaParseDailyAlmaty().then(() => {
-//               console.log('Finished scraping for daily.');
-//           }),
-//       ]);
-//       console.log('All scraping tasks completed.');
-//   } catch (error) {
-//       console.error('Error during scraping process:', error);
-//   }
-// }
 async function runScrapers() {
   try {
     console.log('Starting concurrent scraping...');
@@ -99,6 +79,7 @@ function scheduleScrapers() {
 }
 
 scheduleScrapers();
+// runScrapers();
 
 // saveDataToDB();
 // setInterval(saveDataToDB, 30 * 60 * 1000);

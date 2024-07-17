@@ -1,4 +1,14 @@
+import { PrismaClient } from "@prisma/client";
 import { Page } from "puppeteer";
+import { Data } from "../types/apartments";
+import pinecone from "../../pinecone";
+
+import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
+
+const prisma = new PrismaClient();
+const embeddings = new GoogleGenerativeAIEmbeddings({
+    model: "embedding-001", // 768 dimensions
+});
 
 export const userAgents = [
     'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36',
@@ -97,7 +107,6 @@ export async function autoScroll(page: Page){
 
 
 export async function cleanUpOldPineconeEntries(index, currentDate, typeForDelete : string, siteForDelete : string) {
-    let { GoogleGenerativeAIEmbeddings } = require("@langchain/google-genai");
     const deleteOlderThanDate = new Date(currentDate);
     deleteOlderThanDate.setDate(deleteOlderThanDate.getDate() - 1);
     const embeddedPrompt = await new GoogleGenerativeAIEmbeddings().embedQuery('delete old vectors from Pinecone.');
@@ -129,4 +138,78 @@ export async function cleanUpOldPineconeEntries(index, currentDate, typeForDelet
         } else {
             console.log("No old vectors found to delete.");
         }
+}
+
+export async function deleteOlderThanDate(index, currentDate, typeForDelete : string, siteForDelete : string) {
+    const deleteOlderThanDate = new Date(currentDate);
+    deleteOlderThanDate.setDate(deleteOlderThanDate.getDate() - 1);
+    await prisma.apartment.deleteMany({
+        where: {
+            AND: [
+                {
+                    lastChecked: {
+                        lt: deleteOlderThanDate,
+                    },
+                },
+                {
+                    site: siteForDelete,
+                },
+                {
+                    type: typeForDelete,
+                },
+            ],
+        },
+    });
+    await cleanUpOldPineconeEntries(index, currentDate, typeForDelete, siteForDelete);
+}
+
+export async function saveToDatabase(data: Data): Promise<void> {
+    const currentDate = new Date();
+    const indexName = "homespark3";
+    const index = pinecone.index(indexName);
+
+    const maxRetries = 5;
+    const delay = 5000; 
+    const { link, characteristics, mainCharacteristics, description, site, type } = data;
+    const { price, location, floor, number, photos } = mainCharacteristics;
+    
+    for (let i = 0; i < maxRetries; i++) {
+        try {
+            await prisma.apartment.upsert({
+                where: { link },
+                update: { price, location, floor, number, photos, characteristics, description, lastChecked: currentDate, site, type },
+                create: { link, price, location, floor, number, photos, characteristics, description, lastChecked: currentDate, site, type },
+            });
+
+            const text = `${description} ${price} ${location} ${floor} ${characteristics}`;
+            
+            const embedding = await embeddings.embedDocuments([text]);
+            const flattenedEmbedding = embedding.flat();
+
+            await index.upsert([{
+                id: link,
+                values: flattenedEmbedding,
+                metadata: {
+                    link,
+                    price,
+                    location,
+                    floor,
+                    characteristics: Object.entries(characteristics).map(([key, value]) => `${key}: ${value}`),
+                    description,
+                    site,
+                    type,
+                    lastChecked: currentDate.toString()
+                }
+            }]);
+
+            console.log(`Saved apartment: ${link}`);
+            break;
+        } catch (error) {
+            console.error(`Attempt ${i + 1} to save data failed. Retrying in ${delay / 1000} seconds...`, error);
+            if (i === maxRetries - 1) {
+                throw error;
+            }
+            await new Promise(resolve => setTimeout(resolve, delay));
+        }
+    }
 }
