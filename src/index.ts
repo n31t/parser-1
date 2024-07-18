@@ -5,7 +5,7 @@ import { logger } from './logger';
 // import parseData from './parser/etagiParserRentAlmaty';
 import cron from 'node-cron';
 // import etagiParseBuyAlmaty from './parser/etagiParserBuyAlmaty';
-import etagiParseBuyAlmaty from './parser/redisEtagiParserBuyAlmaty';
+import etagiParseBuyAlmaty from './parser/redisEtagiParserBuyAlmatyTest2';
 // import etagiParseRentAlmaty from './parser/etagiParserRentAlmaty';
 import etagiParseRentAlmaty from './parser/redisEtagiParserRentAlmaty';
 // import krishaParseBuyAlmaty from './parser/krishaParserBuyAlmaty';
