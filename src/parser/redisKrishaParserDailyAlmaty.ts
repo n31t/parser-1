@@ -46,7 +46,7 @@ async function scrapeApartment(job: Job<{ link: string }>): Promise<void> {
     let detailPage: Page | null = null;
     try {
         if(!browser){
-            createBrowser()
+            await createBrowser();
         }
         const { link } = job.data;
         detailPage = await browser!.newPage();
@@ -199,6 +199,7 @@ async function scrapePage(job: Job<{ pageUrl: string }>): Promise<void> {
 
 async function krishaParseDailyAlmaty(): Promise<void> {
     try {
+        await createBrowser();
         let currentPage = 1;
         let isLastPage = false;
 
@@ -225,12 +226,12 @@ async function krishaParseDailyAlmaty(): Promise<void> {
         await waitForQueueCompletion(apartmentQueue);
 
     } catch (error) {
-        console.error('Error in krishaBuyAlmaty:', error);
+        console.error('Error in krishaDailyAlmaty:', error);
     } finally {
         const currentDate = new Date();
         const indexName = "homespark3";
         const index = pinecone.index(indexName);
-        await deleteOlderThanDate(index, currentDate, "buy", "krisha");
+        await deleteOlderThanDate(index, currentDate, "daily", "krisha");
         await browser!.close();
     }
 
@@ -254,7 +255,7 @@ let apartmentWorker: Worker | null = null;
 
 function startApartmentWorker() {
     if (!apartmentWorker) {
-        apartmentWorker = new Worker('apartmentQueueKrishaBuy', async job => {
+        apartmentWorker = new Worker('apartmentQueueKrishaDaily', async job => {
             await scrapeApartmentWithTimeout(job);;
         }, { connection: redisConnection, concurrency: 1 });
 
@@ -264,7 +265,7 @@ function startApartmentWorker() {
 }
 
 
-const pageWorker = new Worker('pageQueueKrishaBuy', async job => {
+const pageWorker = new Worker('pageQueueKrishaDaily', async job => {
     await scrapePage(job);
 }, { connection: redisConnection, concurrency: 1 });
 

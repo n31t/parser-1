@@ -169,7 +169,7 @@ async function scrapeApartment(job: Job<{ link: string }>): Promise<void> {
         console.log(`Scraped and saved apartment: ${link}`);
     } catch (error) {
         console.error(`Error scraping link ${job.data.link}:`, error);
-        createBrowser(); // Recreate the browser for the next job
+        await createBrowser(); // Recreate the browser for the next job
         throw error; // This will cause the job to be retried
     } finally {
         if (detailPage) await detailPage.close();
@@ -202,7 +202,7 @@ async function scrapePage(job: Job<{ pageUrl: string }>): Promise<void> {
         console.log(`Queued ${links.length} apartments from ${pageUrl} on krisha buy almaty page`);
     } catch (error) {
         console.error(`Error scraping page ${job.data.pageUrl}:`, error);
-        createBrowser();
+        await createBrowser();
         throw error;
     } finally {
         if (page) await page.close();
@@ -211,6 +211,7 @@ async function scrapePage(job: Job<{ pageUrl: string }>): Promise<void> {
 
 async function krishaParseBuyAlmaty(): Promise<void> {
     try {
+        await createBrowser();
         let currentPage = 1;
         let isLastPage = false;
 
