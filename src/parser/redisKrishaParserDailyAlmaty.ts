@@ -29,6 +29,20 @@ async function createBrowser() {
     });
 }
 
+let pageCount = 0;
+const MAX_PAGES_PER_BROWSER = 200;
+
+async function ensureBrowser() {
+    if (!browser || !browser.isConnected() || pageCount >= MAX_PAGES_PER_BROWSER) {
+      if (browser) {
+        await browser.close();
+      }
+      await createBrowser();
+      pageCount = 0;
+    }
+    pageCount++;
+  }
+
 async function scrapeApartmentWithTimeout(job: Job<{ link: string }>): Promise<void> {
     return new Promise((resolve, reject) => {
         const timeout = setTimeout(() => {
@@ -45,9 +59,7 @@ async function scrapeApartmentWithTimeout(job: Job<{ link: string }>): Promise<v
 async function scrapeApartment(job: Job<{ link: string }>): Promise<void> {
     let detailPage: Page | null = null;
     try {
-        if(!browser){
-            await createBrowser();
-        }
+        await ensureBrowser();
         const { link } = job.data;
         detailPage = await browser!.newPage();
         const userAgent = getRandomUserAgent();
@@ -167,9 +179,7 @@ async function scrapeApartment(job: Job<{ link: string }>): Promise<void> {
 async function scrapePage(job: Job<{ pageUrl: string }>): Promise<void> {
     let page: Page | null = null;
     try {
-        if (!browser) {
-            await createBrowser();
-        }
+        await ensureBrowser();
         const { pageUrl } = job.data;
         page = await browser!.newPage();
         await page.goto(pageUrl);
