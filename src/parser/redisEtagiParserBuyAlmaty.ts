@@ -23,7 +23,11 @@ async function scrapeApartment(job: Job<{ link: string }>): Promise<void> {
     let detailPage: Page | null = null;
     try {
         browser = await puppeteer.launch({
-            args: ['--no-sandbox', '--disable-setuid-sandbox'],
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage'
+              ],
         });
         const { link } = job.data;
         detailPage = await browser.newPage();
@@ -118,7 +122,11 @@ async function scrapePage(job: Job<{ pageUrl: string }>): Promise<void> {
     let page: Page | null = null;
     try {
         browser = await puppeteer.launch({
-            args: ['--no-sandbox', '--disable-setuid-sandbox'],
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage'
+              ],
         });
         const { pageUrl } = job.data;
         page = await browser.newPage();

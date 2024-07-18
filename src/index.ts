@@ -41,33 +41,33 @@ async function runScrapers() {
   try {
     console.log('Starting concurrent scraping...');
 
-    // await Promise.all([
-    //   etagiParseRentAlmaty().then(() => {
-    //     console.log('Finished scraping for rent.');
-    //   }),
-    // ]);
+    await Promise.all([
+      etagiParseRentAlmaty().then(() => {
+        console.log('Finished scraping for rent.');
+      }),
+    ]);
     // await Promise.all([
     //   etagiParseBuyAlmaty().then(() => {
     //     console.log('Finished scraping for buy.');
     //   }),
     // ]);
-    await Promise.all([
-      krishaParseDailyAlmaty().then(() => {
-        console.log('Finished scraping for buy.');
-      }),
-    ]);
+    // await Promise.all([
+    //   krishaParseDailyAlmaty().then(() => {
+    //     console.log('Finished scraping for buy.');
+    //   }),
+    // ]);
 
-    await Promise.all([
-      krishaParseBuyAlmaty().then(() => {
-        console.log('Finished scraping for buy.');
-      }),
-    ]);
+    // await Promise.all([
+    //   krishaParseBuyAlmaty().then(() => {
+    //     console.log('Finished scraping for buy.');
+    //   }),
+    // ]);
 
-    await Promise.all([
-      krishaParseRentAlmaty().then(() => {
-        console.log('Finished scraping for buy.');
-      }),
-    ]);
+    // await Promise.all([
+    //   krishaParseRentAlmaty().then(() => {
+    //     console.log('Finished scraping for buy.');
+    //   }),
+    // ]);
 
     console.log('All scraping tasks completed.');
   } catch (error) {
