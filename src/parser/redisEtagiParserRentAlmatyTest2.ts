@@ -112,6 +112,7 @@ async function scrapeApartment(job: Job<{ link: string }>): Promise<void> {
         console.log(`Scraped and saved apartment: ${link}`);
     } catch (error) {
         console.error(`Error scraping link ${job.data.link}:`, error);
+        await createBrowser(); 
         throw error; // This will cause the job to be retried
     } finally {
         if (detailPage) await detailPage.close();
@@ -144,6 +145,7 @@ async function scrapePage(job: Job<{ pageUrl: string }>): Promise<void> {
         console.log(`Queued ${links.length} apartments from ${pageUrl} on etagi rent almaty`);
     } catch (error) {
         console.error(`Error scraping page ${job.data.pageUrl}:`, error);
+        await createBrowser(); 
         throw error;
     } finally {
         if (page) await page.close();
@@ -186,6 +188,7 @@ async function etagiParseRentAlmaty(): Promise<void> {
         const indexName = "homespark3";
         const index = pinecone.index(indexName);
         await deleteOlderThanDate(index, currentDate, "rent", "etagi");
+        await browser!.close();
     }
 
 }
@@ -222,15 +225,9 @@ const pageWorker = new Worker('pageQueueEtagiRent', async job => {
     await scrapePage(job);
 }, { connection: redisConnection, concurrency: 1 });
 
-// const apartmentWorker = new Worker('apartmentQueueEtagiRent', async job => {
-//     await scrapeApartment(job);
-// }, { connection: redisConnection, concurrency: 1 });
-
 // Handle worker events
 pageWorker.on('completed', job => console.log(`Page job ${job.id} completed`));
 pageWorker.on('failed', (job, err) => console.error(`Page job ${job?.id} failed with ${err}`));
 
-// apartmentWorker.on('completed', job => console.log(`Apartment job ${job.id} completed`));
-// apartmentWorker.on('failed', (job, err) => console.error(`Apartment job ${job?.id} failed with ${err}`));
 
 export default etagiParseRentAlmaty;

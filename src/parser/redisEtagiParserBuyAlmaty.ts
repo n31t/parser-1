@@ -18,19 +18,26 @@ const redisConnection = new Redis(redisUrl, {
 const pageQueue = new Queue('pageQueueEtagiBuy', { connection: redisConnection });
 const apartmentQueue = new Queue('apartmentQueueEtagiBuy', { connection: redisConnection });
 
+let browser: Browser | null = null;
+
+async function createBrowser() {
+    if (browser) {
+        await browser.close();
+    }
+    browser = await puppeteer.launch({
+        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    });
+}
+
 async function scrapeApartment(job: Job<{ link: string }>): Promise<void> {
-    let browser: Browser | null = null;
+
     let detailPage: Page | null = null;
     try {
-        browser = await puppeteer.launch({
-            args: [
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
-                '--disable-dev-shm-usage'
-              ],
-        });
+        if (!browser) {
+            await createBrowser();
+        }
         const { link } = job.data;
-        detailPage = await browser.newPage();
+        detailPage = await browser!.newPage();
         await detailPage.goto(link);
         
         const userAgent = getRandomUserAgent();
@@ -110,26 +117,21 @@ async function scrapeApartment(job: Job<{ link: string }>): Promise<void> {
         console.log(`Scraped and saved apartment: ${link}`);
     } catch (error) {
         console.error(`Error scraping link ${job.data.link}:`, error);
+        await createBrowser(); 
         throw error; // This will cause the job to be retried
     } finally {
         if (detailPage) await detailPage.close();
-        if (browser) await browser.close();
     }
 }
 
 async function scrapePage(job: Job<{ pageUrl: string }>): Promise<void> {
-    let browser: Browser | null = null;
     let page: Page | null = null;
     try {
-        browser = await puppeteer.launch({
-            args: [
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
-                '--disable-dev-shm-usage'
-              ],
-        });
+        if (!browser) {
+            await createBrowser();
+        }
         const { pageUrl } = job.data;
-        page = await browser.newPage();
+        page = await browser!.newPage();
         await page.goto(pageUrl);
         await autoScroll(page);
 
@@ -148,15 +150,16 @@ async function scrapePage(job: Job<{ pageUrl: string }>): Promise<void> {
         console.log(`Queued ${links.length} apartments from ${pageUrl} on etagi buy almaty page`);
     } catch (error) {
         console.error(`Error scraping page ${job.data.pageUrl}:`, error);
+        await createBrowser(); 
         throw error;
     } finally {
         if (page) await page.close();
-        if (browser) await browser.close();
     }
 }
 
 async function etagiParseBuyAlmaty(): Promise<void> {
     try {
+        await createBrowser(); 
         let currentPage = 1;
         let isLastPage = false;
 
@@ -171,29 +174,17 @@ async function etagiParseBuyAlmaty(): Promise<void> {
             });
 
             currentPage++;
-            await new Promise(resolve => setTimeout(resolve, getRandomDelay(2000, 5000)));
+            await new Promise(resolve => setTimeout(resolve, getRandomDelay(1000, 3000)));
         }
 
-        // Wait for all jobs to complete
-        // await pageQueue.drain();
-        // await apartmentQueue.drain();
-        await new Promise<void>((resolve, reject) => {
-            const checkQueues = async () => {
-                const [pageCount, apartmentCount] = await Promise.all([
-                    pageQueue.getJobCounts(),
-                    apartmentQueue.getJobCounts()
-                ]);
+        // Wait for all page jobs to complete
+        await waitForQueueCompletion(pageQueue);
 
-                if (pageCount.waiting === 0 && pageCount.active === 0 &&
-                    apartmentCount.waiting === 0 && apartmentCount.active === 0) {
-                    resolve();
-                } else {
-                    setTimeout(checkQueues, 2000); // Check again after 2 seconds
-                }
-            };
+        // Start apartment worker
+        startApartmentWorker();
 
-            checkQueues().catch(reject);
-        });
+        // Wait for all apartment jobs to complete
+        await waitForQueueCompletion(apartmentQueue);
 
     } catch (error) {
         console.error('Error in etagiParseBuyAlmaty:', error);
@@ -202,24 +193,45 @@ async function etagiParseBuyAlmaty(): Promise<void> {
         const indexName = "homespark3";
         const index = pinecone.index(indexName);
         await deleteOlderThanDate(index, currentDate, "buy", "etagi");
+        await browser!.close();
     }
 
 }
 
-// Set up workers
+async function waitForQueueCompletion(queue: Queue): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+        const checkQueue = async () => {
+            const jobCounts = await queue.getJobCounts();
+            if (jobCounts.waiting === 0 && jobCounts.active === 0) {
+                resolve();
+            } else {
+                setTimeout(checkQueue, 2000); // Check again after 2 seconds
+            }
+        };
+        checkQueue().catch(reject);
+    });
+}
+
+let apartmentWorker: Worker | null = null;
+
+function startApartmentWorker() {
+    if (!apartmentWorker) {
+        apartmentWorker = new Worker('apartmentQueueEtagiBuy', async job => {
+            await scrapeApartment(job);
+        }, { connection: redisConnection, concurrency: 1 });
+
+        apartmentWorker.on('completed', job => console.log(`Apartment job ${job.id} completed`));
+        apartmentWorker.on('failed', (job, err) => console.error(`Apartment job ${job?.id} failed with ${err}`));
+    }
+}
+
+
 const pageWorker = new Worker('pageQueueEtagiBuy', async job => {
     await scrapePage(job);
-}, { connection: redisConnection, concurrency: 1 });
-
-const apartmentWorker = new Worker('apartmentQueueEtagiBuy', async job => {
-    await scrapeApartment(job);
 }, { connection: redisConnection, concurrency: 1 });
 
 // Handle worker events
 pageWorker.on('completed', job => console.log(`Page job ${job.id} completed`));
 pageWorker.on('failed', (job, err) => console.error(`Page job ${job?.id} failed with ${err}`));
-
-apartmentWorker.on('completed', job => console.log(`Apartment job ${job.id} completed`));
-apartmentWorker.on('failed', (job, err) => console.error(`Apartment job ${job?.id} failed with ${err}`));
 
 export default etagiParseBuyAlmaty;

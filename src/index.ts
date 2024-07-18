@@ -5,7 +5,7 @@ import { logger } from './logger';
 // import parseData from './parser/etagiParserRentAlmaty';
 import cron from 'node-cron';
 // import etagiParseBuyAlmaty from './parser/etagiParserBuyAlmaty';
-import etagiParseBuyAlmaty from './parser/redisEtagiParserBuyAlmatyTest2';
+import etagiParseBuyAlmaty from './parser/redisEtagiParserBuyAlmaty';
 // import etagiParseRentAlmaty from './parser/etagiParserRentAlmaty';
 import etagiParseRentAlmaty from './parser/redisEtagiParserRentAlmaty';
 // import krishaParseBuyAlmaty from './parser/krishaParserBuyAlmaty';
@@ -46,22 +46,22 @@ async function runScrapers() {
     //     console.log('Finished scraping for rent.');
     //   }),
     // ]);
-    await Promise.all([
-      etagiParseBuyAlmaty().then(() => {
-        console.log('Finished scraping for buy.');
-      }),
-    ]);
+    // await Promise.all([
+    //   etagiParseBuyAlmaty().then(() => {
+    //     console.log('Finished scraping for buy.');
+    //   }),
+    // ]);
     // await Promise.all([
     //   krishaParseDailyAlmaty().then(() => {
     //     console.log('Finished scraping for buy.');
     //   }),
     // ]);
 
-    // await Promise.all([
-    //   krishaParseBuyAlmaty().then(() => {
-    //     console.log('Finished scraping for buy.');
-    //   }),
-    // ]);
+    await Promise.all([
+      krishaParseBuyAlmaty().then(() => {
+        console.log('Finished scraping for buy.');
+      }),
+    ]);
 
     // await Promise.all([
     //   krishaParseRentAlmaty().then(() => {

@@ -18,6 +18,17 @@ const redisConnection = new Redis(redisUrl, {
 const pageQueue = new Queue('pageQueueKrishaDaily', { connection: redisConnection });
 const apartmentQueue = new Queue('apartmentQueueKrishaDaily', { connection: redisConnection });
 
+let browser: Browser | null = null;
+
+async function createBrowser() {
+    if (browser) {
+        await browser.close();
+    }
+    browser = await puppeteer.launch({
+        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    });
+}
+
 async function scrapeApartmentWithTimeout(job: Job<{ link: string }>): Promise<void> {
     return new Promise((resolve, reject) => {
         const timeout = setTimeout(() => {
@@ -32,14 +43,13 @@ async function scrapeApartmentWithTimeout(job: Job<{ link: string }>): Promise<v
 }
 
 async function scrapeApartment(job: Job<{ link: string }>): Promise<void> {
-    let browser: Browser | null = null;
     let detailPage: Page | null = null;
     try {
-        browser = await puppeteer.launch({
-            args: ['--no-sandbox', '--disable-setuid-sandbox'],
-        });
+        if(!browser){
+            createBrowser()
+        }
         const { link } = job.data;
-        detailPage = await browser.newPage();
+        detailPage = await browser!.newPage();
         const userAgent = getRandomUserAgent();
         await detailPage.setUserAgent(userAgent);
         
@@ -147,22 +157,21 @@ async function scrapeApartment(job: Job<{ link: string }>): Promise<void> {
         console.log(`Scraped and saved apartment: ${link}`);
     } catch (error) {
         console.error(`Error scraping link ${job.data.link}:`, error);
+        createBrowser();
         throw error; // This will cause the job to be retried
     } finally {
         if (detailPage) await detailPage.close();
-        if (browser) await browser.close();
     }
 }
 
 async function scrapePage(job: Job<{ pageUrl: string }>): Promise<void> {
-    let browser: Browser | null = null;
     let page: Page | null = null;
     try {
-        browser = await puppeteer.launch({
-            args: ['--no-sandbox', '--disable-setuid-sandbox'],
-        });
+        if (!browser) {
+            await createBrowser();
+        }
         const { pageUrl } = job.data;
-        page = await browser.newPage();
+        page = await browser!.newPage();
         await page.goto(pageUrl);
         await autoScroll(page);
 
@@ -207,49 +216,60 @@ async function krishaParseDailyAlmaty(): Promise<void> {
             await new Promise(resolve => setTimeout(resolve, getRandomDelay(1000, 3000)));
         }
 
-        await new Promise<void>((resolve, reject) => {
-            const checkQueues = async () => {
-                const [pageCount, apartmentCount] = await Promise.all([
-                    pageQueue.getJobCounts(),
-                    apartmentQueue.getJobCounts()
-                ]);
+        await waitForQueueCompletion(pageQueue);
 
-                if (pageCount.waiting === 0 && pageCount.active === 0 &&
-                    apartmentCount.waiting === 0 && apartmentCount.active === 0) {
-                    resolve();
-                } else {
-                    setTimeout(checkQueues, 2000); // Check again after 2 seconds
-                }
-            };
+        // Start apartment worker
+        startApartmentWorker();
 
-            checkQueues().catch(reject);
-        });
+        // Wait for all apartment jobs to complete
+        await waitForQueueCompletion(apartmentQueue);
 
     } catch (error) {
-        console.error('Error in krishaParseDailyAlmaty:', error);
+        console.error('Error in krishaBuyAlmaty:', error);
     } finally {
         const currentDate = new Date();
         const indexName = "homespark3";
         const index = pinecone.index(indexName);
-        await deleteOlderThanDate(index, currentDate, "daily", "krisha");
+        await deleteOlderThanDate(index, currentDate, "buy", "krisha");
+        await browser!.close();
     }
 
 }
 
-// Set up workers
-const pageWorker = new Worker('pageQueueKrishaDaily', async job => {
-    await scrapePage(job);
-}, { connection: redisConnection, concurrency: 1 });
+async function waitForQueueCompletion(queue: Queue): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+        const checkQueue = async () => {
+            const jobCounts = await queue.getJobCounts();
+            if (jobCounts.waiting === 0 && jobCounts.active === 0) {
+                resolve();
+            } else {
+                setTimeout(checkQueue, 2000); // Check again after 2 seconds
+            }
+        };
+        checkQueue().catch(reject);
+    });
+}
 
-const apartmentWorker = new Worker('apartmentQueueKrishaDaily', async job => {
-    await scrapeApartmentWithTimeout(job);
+let apartmentWorker: Worker | null = null;
+
+function startApartmentWorker() {
+    if (!apartmentWorker) {
+        apartmentWorker = new Worker('apartmentQueueKrishaBuy', async job => {
+            await scrapeApartmentWithTimeout(job);;
+        }, { connection: redisConnection, concurrency: 1 });
+
+        apartmentWorker.on('completed', job => console.log(`Apartment job ${job.id} completed`));
+        apartmentWorker.on('failed', (job, err) => console.error(`Apartment job ${job?.id} failed with ${err}`));
+    }
+}
+
+
+const pageWorker = new Worker('pageQueueKrishaBuy', async job => {
+    await scrapePage(job);
 }, { connection: redisConnection, concurrency: 1 });
 
 // Handle worker events
 pageWorker.on('completed', job => console.log(`Page job ${job.id} completed`));
 pageWorker.on('failed', (job, err) => console.error(`Page job ${job?.id} failed with ${err}`));
-
-apartmentWorker.on('completed', job => console.log(`Apartment job ${job.id} completed`));
-apartmentWorker.on('failed', (job, err) => console.error(`Apartment job ${job?.id} failed with ${err}`));
 
 export default krishaParseDailyAlmaty;
