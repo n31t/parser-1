@@ -170,23 +170,14 @@ async function etagiParseRentAlmaty(): Promise<void> {
             await new Promise(resolve => setTimeout(resolve, getRandomDelay(1000, 3000)));
         }
 
-        await new Promise<void>((resolve, reject) => {
-            const checkQueues = async () => {
-                const [pageCount, apartmentCount] = await Promise.all([
-                    pageQueue.getJobCounts(),
-                    apartmentQueue.getJobCounts()
-                ]);
+        // Wait for all page jobs to complete
+        await waitForQueueCompletion(pageQueue);
 
-                if (pageCount.waiting === 0 && pageCount.active === 0 &&
-                    apartmentCount.waiting === 0 && apartmentCount.active === 0) {
-                    resolve();
-                } else {
-                    setTimeout(checkQueues, 2000); // Check again after 2 seconds
-                }
-            };
+        // Start apartment worker
+        startApartmentWorker();
 
-            checkQueues().catch(reject);
-        });
+        // Wait for all apartment jobs to complete
+        await waitForQueueCompletion(apartmentQueue);
 
     } catch (error) {
         console.error('Error in etagiParseRentAlmaty:', error);
@@ -199,20 +190,47 @@ async function etagiParseRentAlmaty(): Promise<void> {
 
 }
 
-// Set up workers
+async function waitForQueueCompletion(queue: Queue): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+        const checkQueue = async () => {
+            const jobCounts = await queue.getJobCounts();
+            if (jobCounts.waiting === 0 && jobCounts.active === 0) {
+                resolve();
+            } else {
+                setTimeout(checkQueue, 2000); // Check again after 2 seconds
+            }
+        };
+        checkQueue().catch(reject);
+    });
+}
+
+let apartmentWorker: Worker | null = null;
+
+function startApartmentWorker() {
+    if (!apartmentWorker) {
+        apartmentWorker = new Worker('apartmentQueueEtagiRent', async job => {
+            await scrapeApartment(job);
+        }, { connection: redisConnection, concurrency: 1 });
+
+        apartmentWorker.on('completed', job => console.log(`Apartment job ${job.id} completed`));
+        apartmentWorker.on('failed', (job, err) => console.error(`Apartment job ${job?.id} failed with ${err}`));
+    }
+}
+
+
 const pageWorker = new Worker('pageQueueEtagiRent', async job => {
     await scrapePage(job);
 }, { connection: redisConnection, concurrency: 1 });
 
-const apartmentWorker = new Worker('apartmentQueueEtagiRent', async job => {
-    await scrapeApartment(job);
-}, { connection: redisConnection, concurrency: 1 });
+// const apartmentWorker = new Worker('apartmentQueueEtagiRent', async job => {
+//     await scrapeApartment(job);
+// }, { connection: redisConnection, concurrency: 1 });
 
 // Handle worker events
 pageWorker.on('completed', job => console.log(`Page job ${job.id} completed`));
 pageWorker.on('failed', (job, err) => console.error(`Page job ${job?.id} failed with ${err}`));
 
-apartmentWorker.on('completed', job => console.log(`Apartment job ${job.id} completed`));
-apartmentWorker.on('failed', (job, err) => console.error(`Apartment job ${job?.id} failed with ${err}`));
+// apartmentWorker.on('completed', job => console.log(`Apartment job ${job.id} completed`));
+// apartmentWorker.on('failed', (job, err) => console.error(`Apartment job ${job?.id} failed with ${err}`));
 
 export default etagiParseRentAlmaty;
