@@ -53,35 +53,35 @@ async function runScrapers() {
     // ]);
     await Promise.all([
       krishaParseDailyAlmaty().then(() => {
-        console.log('Finished scraping for buy.');
+        console.log('Finished scraping for daily.');
       }),
     ]);
 
-    await Promise.all([
-      krishaParseBuyAlmaty().then(() => {
-        console.log('Finished scraping for buy.');
-      }),
-    ]);
+    // await Promise.all([
+    //   krishaParseBuyAlmaty().then(() => {
+    //     console.log('Finished scraping for buy.');
+    //   }),
+    // ]);
 
-    await Promise.all([
-      krishaParseRentAlmaty().then(() => {
-        console.log('Finished scraping for buy.');
-      }),
-    ]);
+    // await Promise.all([
+    //   krishaParseRentAlmaty().then(() => {
+    //     console.log('Finished scraping for rent.');
+    //   }),
+    // ]);
 
     console.log('All scraping tasks completed.');
   } catch (error) {
     console.error('Error during scraping process:', error);
   }
 }
-function scheduleScrapers() {
-  runScrapers();
+// function scheduleScrapers() {
+//   runScrapers();
 
-  cron.schedule('0 0 */2 * *', runScrapers);
-}
+//   cron.schedule('0 0 */2 * *', runScrapers);
+// }
 
-scheduleScrapers();
-// runScrapers();
+// scheduleScrapers();
+runScrapers();
 
 // saveDataToDB();
 // setInterval(saveDataToDB, 30 * 60 * 1000);

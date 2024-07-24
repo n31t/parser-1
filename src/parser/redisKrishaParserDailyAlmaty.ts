@@ -30,7 +30,7 @@ async function createBrowser() {
 }
 
 let pageCount = 0;
-const MAX_PAGES_PER_BROWSER = 200;
+const MAX_PAGES_PER_BROWSER = 2000;
 
 async function ensureBrowser() {
     if (!browser || !browser.isConnected() || pageCount >= MAX_PAGES_PER_BROWSER) {
