@@ -57,17 +57,17 @@ async function runScrapers() {
     //   }),
     // ]);
 
-    await Promise.all([
-      krishaParseBuyAlmaty().then(() => {
-        console.log('Finished scraping for buy.');
-      }),
-    ]);
-
     // await Promise.all([
-    //   krishaParseRentAlmaty().then(() => {
-    //     console.log('Finished scraping for rent.');
+    //   krishaParseBuyAlmaty().then(() => {
+    //     console.log('Finished scraping for buy.');
     //   }),
     // ]);
+
+    await Promise.all([
+      krishaParseRentAlmaty().then(() => {
+        console.log('Finished scraping for rent.');
+      }),
+    ]);
 
     console.log('All scraping tasks completed.');
   } catch (error) {
