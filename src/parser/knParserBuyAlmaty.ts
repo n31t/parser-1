@@ -90,7 +90,7 @@ async function scrapeCurrentPage(page: Page): Promise<void> {
 
             const mainCharacteristics: MainCharacteristics = { price, location, floor, number, photos };
             const site = "kn";  // Adding the site field
-            const type = "daily";   // Adding the type field
+            const type = "buy";   // Adding the type field
 
             const apartmentData: Data = { link, characteristics, mainCharacteristics, description, site, type };
             console.log(apartmentData);
@@ -111,7 +111,7 @@ async function scrapeAllPages(page: Page, currentPage: number = 4): Promise<void
     while (!isLastPage) {
         console.log(`Scraping page ${currentPage}...`);
         try {
-            await page.goto(`https://www.kn.kz/almaty/arenda-kvartir-posutochno/page/${currentPage}/`);
+            await page.goto(`https://www.kn.kz/almaty/prodazha-kvartir-bez-posrednikov/page/${currentPage}/`);
             
             if ((currentPage <= 5)) {
                 await scrapeCurrentPage(page);
@@ -138,7 +138,7 @@ async function scrapeAllPages(page: Page, currentPage: number = 4): Promise<void
     }
 }
 
-async function knParseDailyAlmaty(): Promise<void> {
+async function knParseBuyAlmaty(): Promise<void> {
     const browser = await puppeteer.launch({
         args: ['--no-sandbox', '--disable-setuid-sandbox'],
       });
@@ -155,9 +155,9 @@ async function knParseDailyAlmaty(): Promise<void> {
     const currentDate = new Date();
     const indexName = "homespark3";
     const index = pinecone.index(indexName);
-    await deleteOlderThanDate(index, currentDate, "daily", "kn");
+    await deleteOlderThanDate(index, currentDate, "buy", "kn");
 
 }
 
 
-export default knParseDailyAlmaty;
+export default knParseBuyAlmaty;

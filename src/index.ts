@@ -18,6 +18,8 @@ import krishaParseRentAlmaty from './parser/redisKrishaParserRentAlmaty';
 import knParseRentAlmaty from './parser/redisKnParserRentAlmaty';
 // import knParseDailyAlmaty from './parser/knParserDailyAlmaty';
 import knParseDailyAlmaty from './parser/redisKnParserDailyAlmaty';
+// import knParseBuyAlmaty from './parser/knParserBuyAlmaty';
+import knParseBuyAlmaty from './parser/redisKnParserBuyAlmaty';
 
 
 const app = express();
@@ -79,9 +81,15 @@ async function runScrapers() {
     //   }),
     // ]);
 
+    // await Promise.all([
+    //   knParseDailyAlmaty().then(() => {
+    //     console.log('Finished scraping for daily.');
+    //   }),
+    // ]);
+
     await Promise.all([
-      knParseDailyAlmaty().then(() => {
-        console.log('Finished scraping for daily.');
+      knParseBuyAlmaty().then(() => {
+        console.log('Finished scraping for buy.');
       }),
     ]);
 
