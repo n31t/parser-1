@@ -14,6 +14,8 @@ import krishaParseBuyAlmaty from './parser/redisKrishaParserBuyAlmaty';
 import krishaParseDailyAlmaty from './parser/redisKrishaParserDailyAlmaty';
 // import krishaParseRentAlmaty from './parser/krishaParserRentAlmaty';
 import krishaParseRentAlmaty from './parser/redisKrishaParserRentAlmaty';
+// import knParseRentAlmaty from './parser/knParserRentAlmaty';
+import knParseRentAlmaty from './parser/redisKnParserRentAlmaty';
 
 
 const app = express();
@@ -63,8 +65,14 @@ async function runScrapers() {
     //   }),
     // ]);
 
+    // await Promise.all([
+    //   krishaParseRentAlmaty().then(() => {
+    //     console.log('Finished scraping for rent.');
+    //   }),
+    // ]);
+
     await Promise.all([
-      krishaParseRentAlmaty().then(() => {
+      knParseRentAlmaty().then(() => {
         console.log('Finished scraping for rent.');
       }),
     ]);
@@ -81,7 +89,9 @@ async function runScrapers() {
 // }
 
 // scheduleScrapers();
+
 runScrapers();
+
 
 // saveDataToDB();
 // setInterval(saveDataToDB, 30 * 60 * 1000);
