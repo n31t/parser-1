@@ -16,7 +16,8 @@ import krishaParseDailyAlmaty from './parser/redisKrishaParserDailyAlmaty';
 import krishaParseRentAlmaty from './parser/redisKrishaParserRentAlmaty';
 // import knParseRentAlmaty from './parser/knParserRentAlmaty';
 import knParseRentAlmaty from './parser/redisKnParserRentAlmaty';
-import knParseDailyAlmaty from './parser/knParserDailyAlmaty';
+// import knParseDailyAlmaty from './parser/knParserDailyAlmaty';
+import knParseDailyAlmaty from './parser/redisKnParserDailyAlmaty';
 
 
 const app = express();
