@@ -86,7 +86,7 @@ async function scrapeCurrentPage(page: Page): Promise<void> {
             // console.log(photos);
 
             const number = await detailPage.$eval('span.js-all-phones-view.block-all-phones-view span.con-pers__phone', el => el.textContent || '');
-            console.log(number);
+            // console.log(number);
 
             const mainCharacteristics: MainCharacteristics = { price, location, floor, number, photos };
             const site = "kn";  // Adding the site field
@@ -111,7 +111,7 @@ async function scrapeAllPages(page: Page, currentPage: number = 4): Promise<void
     while (!isLastPage) {
         console.log(`Scraping page ${currentPage}...`);
         try {
-            await page.goto(`https://www.kn.kz/almaty/arenda-kvartir/page/${currentPage}/`);
+            await page.goto(`https://www.kn.kz/almaty/arenda-kvartir-posutochno/page/${currentPage}/`);
             
             if ((currentPage <= 5)) {
                 await scrapeCurrentPage(page);
