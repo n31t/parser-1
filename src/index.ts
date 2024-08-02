@@ -96,17 +96,17 @@ async function runScrapers() {
     //   }),
     // ]);
 
-    // await Promise.all([
-    //   nedvizhkaParseDailyAlmaty().then(() => {
-    //     console.log('Finished scraping for daily.');
-    //   }),
-    // ])
-
     await Promise.all([
-      nedvizhkaParseRentAlmaty().then(() => {
-        console.log('Finished scraping for rent.');
+      nedvizhkaParseDailyAlmaty().then(() => {
+        console.log('Finished scraping for daily.');
       }),
-    ]);
+    ])
+
+    // await Promise.all([
+    //   nedvizhkaParseRentAlmaty().then(() => {
+    //     console.log('Finished scraping for rent.');
+    //   }),
+    // ]);
 
     console.log('All scraping tasks completed.');
   } catch (error) {
