@@ -15,8 +15,8 @@ const redisConnection = new Redis(redisUrl, {
     connectTimeout: 10000,
 });
 
-const pageQueue = new Queue('pageQueueNedvizhkaDaily', { connection: redisConnection });
-const apartmentQueue = new Queue('apartmentQueueNedvizhkaDaily', { connection: redisConnection });
+const pageQueue = new Queue('pageQueueNedvizhkaRent', { connection: redisConnection });
+const apartmentQueue = new Queue('apartmentQueueNedvizhkaRent', { connection: redisConnection });
 
 let browser: Browser | null = null;
 
@@ -104,7 +104,7 @@ async function scrapeApartment(job: Job<{ link: string }>): Promise<void> {
 
         const mainCharacteristics: MainCharacteristics = { price, location, floor, number, photos };
         const site = "nedvizhka";  // Adding the site field
-        const type = "daily";   // Adding the type field
+        const type = "rent";   // Adding the type field
 
         const apartmentData: Data = { link, characteristics, mainCharacteristics, description, site, type };
         // console.log(apartmentData);
@@ -145,7 +145,7 @@ async function scrapePage(job: Job<{ pageUrl: string }>): Promise<void> {
             });
         }
 
-        console.log(`Queued ${links.length} apartments from ${pageUrl} on nedvizhka daily almaty`);
+        console.log(`Queued ${links.length} apartments from ${pageUrl} on nedvizhka rent almaty`);
     } catch (error) {
         console.error(`Error scraping page ${job.data.pageUrl}:`, error);
         await createBrowser();
@@ -155,14 +155,14 @@ async function scrapePage(job: Job<{ pageUrl: string }>): Promise<void> {
     }
 }
 
-async function nedvizhkaParseDailyAlmaty(): Promise<void> {
+async function nedvizhkaParseRentAlmaty(): Promise<void> {
     try {
         await createBrowser(); 
         let currentPage = 1;
         let isLastPage = false;
 
         while (!isLastPage && currentPage <= Number(process.env.PARSER_PAGE_LIMIT)) {
-            const pageUrl = `https://nedvizhka.kz/posts/kvartiry-arenda/almaty?page=${currentPage}&viewType=list&onlyComplexLayouts=0&personal=1&dict_rent_type_id=214`;
+            const pageUrl = `https://nedvizhka.kz/posts/kvartiry-arenda/almaty?page=${currentPage}&viewType=list&onlyComplexLayouts=0&personal=1&dict_rent_type_id=215`;
             await pageQueue.add('scrapePage', { pageUrl }, {
                 attempts: 3,
                 backoff: {
@@ -185,12 +185,12 @@ async function nedvizhkaParseDailyAlmaty(): Promise<void> {
         await waitForQueueCompletion(apartmentQueue);
 
     } catch (error) {
-        console.error('Error in nedvizhkaParseDailyAlmaty:', error);
+        console.error('Error in nedvizhkaParseRentAlmaty:', error);
     } finally {
         const currentDate = new Date();
         const indexName = "homespark3";
         const index = pinecone.index(indexName);
-        await deleteOlderThanDate(index, currentDate, "daily", "nedvizhka");
+        await deleteOlderThanDate(index, currentDate, "rent", "nedvizhka");
         await browser!.close();
     }
 
@@ -214,7 +214,7 @@ let apartmentWorker: Worker | null = null;
 
 function startApartmentWorker() {
     if (!apartmentWorker) {
-        apartmentWorker = new Worker('apartmentQueueNedvizhkaDaily', async job => {
+        apartmentWorker = new Worker('apartmentQueueNedvizhkaRent', async job => {
             await scrapeApartment(job);
         }, { connection: redisConnection, concurrency: 1 });
 
@@ -224,7 +224,7 @@ function startApartmentWorker() {
 }
 
 
-const pageWorker = new Worker('pageQueueNedvizhkaDaily', async job => {
+const pageWorker = new Worker('pageQueueNedvizhkaRent', async job => {
     await scrapePage(job);
 }, { connection: redisConnection, concurrency: 1 });
 
@@ -233,4 +233,4 @@ pageWorker.on('completed', job => console.log(`Page job ${job.id} completed`));
 pageWorker.on('failed', (job, err) => console.error(`Page job ${job?.id} failed with ${err}`));
 
 
-export default nedvizhkaParseDailyAlmaty;
+export default nedvizhkaParseRentAlmaty;
