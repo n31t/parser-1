@@ -24,6 +24,8 @@ import knParseBuyAlmaty from './parser/redisKnParserBuyAlmaty';
 import nedvizhkaParseDailyAlmaty from './parser/redisNedvizhkaParserRentAlmaty';
 import nedvizhkaParseRentAlmaty from './parser/redisNedvizhkaParserRentAlmaty';
 import nedvizhkaParseBuyAlmaty from './parser/redisNedvizhkaParserBuyAlmaty';
+// import nedvizhimostproParseDailyAlmaty from './parser/nedvizhimostproDailyAlmaty';
+import nedvizhimostproParseDailyAlmaty from './parser/redisNedvizhimostproParserDailyAlmaty';
 
 
 const app = express();
@@ -109,10 +111,16 @@ async function runScrapers() {
     //   }),
     // ]);
 
+    // await Promise.all([
+    //   nedvizhkaParseBuyAlmaty().then(() => {
+    //     console.log('Finished scraping for buy.');
+    //   }),
+    // ])
+    
     await Promise.all([
-      nedvizhkaParseBuyAlmaty().then(() => {
-        console.log('Finished scraping for buy.');
-      }),
+      nedvizhimostproParseDailyAlmaty().then(() => {
+        console.log('Finished scraping for daily.');
+      })
     ])
 
     console.log('All scraping tasks completed.');
