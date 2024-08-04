@@ -26,6 +26,7 @@ import nedvizhkaParseRentAlmaty from './parser/redisNedvizhkaParserRentAlmaty';
 import nedvizhkaParseBuyAlmaty from './parser/redisNedvizhkaParserBuyAlmaty';
 // import nedvizhimostproParseDailyAlmaty from './parser/nedvizhimostproDailyAlmaty';
 import nedvizhimostproParseDailyAlmaty from './parser/redisNedvizhimostproParserDailyAlmaty';
+import nedvizhimostproParseRentAlmaty from './parser/redisNedvizhimostproParserRentAlmaty';
 
 
 const app = express();
@@ -117,9 +118,15 @@ async function runScrapers() {
     //   }),
     // ])
     
+    // await Promise.all([
+    //   nedvizhimostproParseDailyAlmaty().then(() => {
+    //     console.log('Finished scraping for daily.');
+    //   })
+    // ])
+
     await Promise.all([
-      nedvizhimostproParseDailyAlmaty().then(() => {
-        console.log('Finished scraping for daily.');
+      nedvizhimostproParseRentAlmaty().then(() => {
+        console.log('Finished scraping for rent.');
       })
     ])
 

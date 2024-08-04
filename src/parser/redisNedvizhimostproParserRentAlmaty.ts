@@ -153,7 +153,9 @@ async function scrapePage(job: Job<{ pageUrl: string }>): Promise<void> {
         await page.goto(pageUrl, { timeout: 60000});
         await autoScroll(page);
 
-        const links = await page.$$eval('div.column.is-marginless.is-paddingless a[data-v-1886bbb4]:first-child', (anchors: HTMLAnchorElement[]) => anchors.map(anchor => anchor.href));
+        const links = await page.$$eval('div.feat_property.list div.thumb a', (anchors: HTMLAnchorElement[]) => 
+            anchors.map(anchor => anchor.href).filter(href => href !== 'javascript:void(0)')
+        ); 
         for (const link of links) {
             await apartmentQueue.add('scrapeApartment', { link }, {
                 attempts: 3,
@@ -181,7 +183,7 @@ async function nedvizhimostproParseRentAlmaty(): Promise<void> {
         let isLastPage = false;
 
         while (!isLastPage && currentPage <= Number(process.env.PARSER_PAGE_LIMIT)) {
-            const pageUrl = `https://nedvizhimostpro.kz/quicksearch/main/mainsearch?sort=date_created&objType=1&city%5B0%5D=2&rooms=0&apType=3&price_Min=&price_Max=&square=&floor=0&page=${currentPage}`;
+            const pageUrl = `https://nedvizhimostpro.kz/quicksearch/main/mainsearch?objType=1&city%5B0%5D=2&rooms=0&apType=5&price_Min=&price_Max=&square=&floor=0&page=${currentPage}`;
             await pageQueue.add('scrapePage', { pageUrl }, {
                 attempts: 3,
                 backoff: {
