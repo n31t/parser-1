@@ -15,8 +15,8 @@ const redisConnection = new Redis(redisUrl, {
     connectTimeout: 10000,
 });
 
-const pageQueue = new Queue('pageQueueNedvizhimostproDaily', { connection: redisConnection });
-const apartmentQueue = new Queue('apartmentQueueNedvizhimostproDaily', { connection: redisConnection });
+const pageQueue = new Queue('pageQueueNedvizhimostproRent', { connection: redisConnection });
+const apartmentQueue = new Queue('apartmentQueueNedvizhimostproRent', { connection: redisConnection });
 
 let browser: Browser | null = null;
 
@@ -123,7 +123,7 @@ async function scrapeApartment(job: Job<{ link: string }>): Promise<void> {
 
         const mainCharacteristics: MainCharacteristics = { price, location, floor, number, photos };
         const site = "nedvizhimostpro";  // Adding the site field
-        const type = "daily";   // Adding the type field
+        const type = "rent";   // Adding the type field
 
         const apartmentData: Data = { link, characteristics, mainCharacteristics, description, site, type };
         // console.log(apartmentData);
@@ -153,9 +153,7 @@ async function scrapePage(job: Job<{ pageUrl: string }>): Promise<void> {
         await page.goto(pageUrl, { timeout: 60000});
         await autoScroll(page);
 
-        const links = await page.$$eval('div.feat_property.list div.thumb a', (anchors: HTMLAnchorElement[]) => 
-            anchors.map(anchor => anchor.href).filter(href => href !== 'javascript:void(0)')
-        ); 
+        const links = await page.$$eval('div.column.is-marginless.is-paddingless a[data-v-1886bbb4]:first-child', (anchors: HTMLAnchorElement[]) => anchors.map(anchor => anchor.href));
         for (const link of links) {
             await apartmentQueue.add('scrapeApartment', { link }, {
                 attempts: 3,
@@ -166,7 +164,7 @@ async function scrapePage(job: Job<{ pageUrl: string }>): Promise<void> {
             });
         }
 
-        console.log(`Queued ${links.length} apartments from ${pageUrl} on nedvizhimostpro daily almaty`);
+        console.log(`Queued ${links.length} apartments from ${pageUrl} on nedvizhimostpro rent almaty`);
     } catch (error) {
         console.error(`Error scraping page ${job.data.pageUrl}:`, error);
         await createBrowser();
@@ -176,7 +174,7 @@ async function scrapePage(job: Job<{ pageUrl: string }>): Promise<void> {
     }
 }
 
-async function nedvizhimostproParseDailyAlmaty(): Promise<void> {
+async function nedvizhimostproParseRentAlmaty(): Promise<void> {
     try {
         await createBrowser(); 
         let currentPage = 1;
@@ -206,12 +204,12 @@ async function nedvizhimostproParseDailyAlmaty(): Promise<void> {
         await waitForQueueCompletion(apartmentQueue);
 
     } catch (error) {
-        console.error('Error in nedvizhimostproParseDailyAlmaty:', error);
+        console.error('Error in nedvizhimostproParseRentAlmaty:', error);
     } finally {
         const currentDate = new Date();
         const indexName = "homespark3";
         const index = pinecone.index(indexName);
-        await deleteOlderThanDate(index, currentDate, "daily", "nedvizhimostpro");
+        await deleteOlderThanDate(index, currentDate, "rent", "nedvizhimostpro");
         await browser!.close();
     }
 
@@ -235,7 +233,7 @@ let apartmentWorker: Worker | null = null;
 
 function startApartmentWorker() {
     if (!apartmentWorker) {
-        apartmentWorker = new Worker('apartmentQueueNedvizhimostproDaily', async job => {
+        apartmentWorker = new Worker('apartmentQueueNedvizhimostproRent', async job => {
             await scrapeApartment(job);
         }, { connection: redisConnection, concurrency: 1 });
 
@@ -245,7 +243,7 @@ function startApartmentWorker() {
 }
 
 
-const pageWorker = new Worker('pageQueueNedvizhimostproDaily', async job => {
+const pageWorker = new Worker('pageQueueNedvizhimostproRent', async job => {
     await scrapePage(job);
 }, { connection: redisConnection, concurrency: 1 });
 
@@ -254,4 +252,4 @@ pageWorker.on('completed', job => console.log(`Page job ${job.id} completed`));
 pageWorker.on('failed', (job, err) => console.error(`Page job ${job?.id} failed with ${err}`));
 
 
-export default nedvizhimostproParseDailyAlmaty;
+export default nedvizhimostproParseRentAlmaty;
