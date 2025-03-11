@@ -15,7 +15,7 @@ async function saveToDatabase(data: Data[]): Promise<void> {
         model: "embedding-001", // 768 dimensions
     });
 
-    const indexName = "homespark3";
+    const indexName = "homespark2";
     const index = pinecone.index(indexName);
 
     const maxRetries = 5;

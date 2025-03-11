@@ -209,7 +209,7 @@ async function nedvizhimostproParseDailyAlmaty(): Promise<void> {
         console.error('Error in nedvizhimostproParseDailyAlmaty:', error);
     } finally {
         const currentDate = new Date();
-        const indexName = "homespark3";
+        const indexName = "homespark2";
         const index = pinecone.index(indexName);
         await deleteOlderThanDate(index, currentDate, "daily", "nedvizhimostpro");
         await browser!.close();

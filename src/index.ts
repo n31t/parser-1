@@ -52,7 +52,7 @@ app.listen(PORT, () => {
 
 async function runScrapers() {
   try {
-    console.log('Starting concurrent scraping...');
+    // console.log('Starting concurrent scraping...');
 
     // await Promise.all([
     //   etagiParseRentAlmaty().then(() => {
@@ -70,23 +70,23 @@ async function runScrapers() {
     //   }),
     // ]);
 
-    // await Promise.all([
-    //   krishaParseBuyAlmaty().then(() => {
-    //     console.log('Finished scraping for buy.');
-    //   }),
-    // ]);
+    await Promise.all([
+      krishaParseBuyAlmaty().then(() => {
+        console.log('Finished scraping for buy.');
+      }),
+    ]);
 
-    // await Promise.all([
-    //   krishaParseRentAlmaty().then(() => {
-    //     console.log('Finished scraping for rent.');
-    //   }),
-    // ]);
+    await Promise.all([
+      krishaParseRentAlmaty().then(() => {
+        console.log('Finished scraping for rent.');
+      }),
+    ]);
 
-    // await Promise.all([
-    //   knParseRentAlmaty().then(() => {
-    //     console.log('Finished scraping for rent.');
-    //   }),
-    // ]);
+    await Promise.all([
+      knParseRentAlmaty().then(() => {
+        console.log('Finished scraping for rent.');
+      }),
+    ]);
 
     // await Promise.all([
     //   knParseDailyAlmaty().then(() => {

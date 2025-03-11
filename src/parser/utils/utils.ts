@@ -165,7 +165,7 @@ export async function deleteOlderThanDate(index, currentDate, typeForDelete : st
 
 export async function saveToDatabase(data: Data): Promise<void> {
     const currentDate = new Date();
-    const indexName = "homespark3";
+    const indexName = "homespark2";
     const index = pinecone.index(indexName);
 
     const maxRetries = 5;

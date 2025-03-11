@@ -185,7 +185,7 @@ async function etagiParseRentAlmaty(): Promise<void> {
         console.error('Error in etagiParseRentAlmaty:', error);
     } finally {
         const currentDate = new Date();
-        const indexName = "homespark3";
+        const indexName = "homespark2";
         const index = pinecone.index(indexName);
         await deleteOlderThanDate(index, currentDate, "rent", "etagi");
         await browser!.close();

@@ -188,7 +188,7 @@ async function nedvizhkaParseBuyAlmaty(): Promise<void> {
         console.error('Error in nedvizhkaParseBuyAlmaty:', error);
     } finally {
         const currentDate = new Date();
-        const indexName = "homespark3";
+        const indexName = "homespark2";
         const index = pinecone.index(indexName);
         await deleteOlderThanDate(index, currentDate, "buy", "nedvizhka");
         await browser!.close();
